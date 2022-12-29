@@ -59,6 +59,8 @@
     vals))
 
 
+;; NOTE: not all keys can be sent with every encoding (e.g., S-a is never sent), but we add them anyway as this
+;; does not have a negative effect
 (defvar kkp--key-modifiers
   (let ((mappings nil)
         (bindings '("C-" "M-" "H-" "s-" "S-"
@@ -76,7 +78,7 @@
       (mapc (lambda (elt) (push `(,bind ,elt) mappings))
             (kkp--compute-flag-values bind)))
     mappings)
-  "List of combination of kbd modifiers for non-printable keys with their encoding.")
+  "List of combination of kbd modifiers for keys with their encoding.")
 
 
 (defvar kkp--printable-keys
@@ -240,6 +242,8 @@ Examples of this include <escape> with keycode 27 and terminator u."
 
   ;; without any modifiers
   (define-key map (kkp--csi-escape (format "%s%s" keycode terminator)) (kbd keystring))
+  ;; if Num_Lock is activated (+128 modifier), we ignore it
+  (define-key map (kkp--csi-escape (format "%s;129%s" keycode terminator)) (kbd keystring))
 
   ;; with modifiers
   (dolist (bind kkp--key-modifiers)
