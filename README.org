@@ -6,7 +6,7 @@ This package provides support for the [[https://sw.kovidgoyal.net/kitty/keyboard
 
 The protocol defines an alternative way to handle keyboard input for programs running in the terminal.
 This allows, if the terminal (and intermediaries such as terminal multiplexers) support the protocol as well,
-the transmission of more detailed information about a key event from the terminal to Emacs, e.g., a distinction between "<tab>" and "<C-i>".
+the transmission of more detailed information about a key event from the terminal to Emacs, e.g., a distinction between "<tab>" and "C-i".
 
 Currently, there exists another solution which solves the same problem, xterm's "modifyOtherKeys", which is already supported by Emacs (and activated by default if the terminal supports it).
 KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_lock>"), more key combinations (e.g., "C-M-S-l") and more modifiers, i.e., the Hyper and Super keys.

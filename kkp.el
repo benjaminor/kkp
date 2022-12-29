@@ -1,4 +1,4 @@
-;;; kkp --- Enable emacs support for the Kitty Keyboard Protocol (one flavor of the CSI u encoding)  -*- lexical-binding: t -*-
+;;; kkp.el --- Enable emacs support for the Kitty Keyboard Protocol (one flavor of the CSI u encoding)  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2022  Benjamin Orthen
 
@@ -30,9 +30,7 @@
 ;; - CSI {ABCDEFHPQRS}
 ;; - CSI 1; modifier {ABCDEFHPQRS}
 
-
 ;;; Code:
-
 (require 'cl-lib)
 
 (defvar kkp--printable-key-modifiers
