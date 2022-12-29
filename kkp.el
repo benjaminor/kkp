@@ -33,49 +33,51 @@
 ;;; Code:
 (require 'cl-lib)
 
-(defvar kkp--printable-key-modifiers
-  '(("C-" 5)
-    ("C-M-" 7)
-    ("C-M-" 37)
-    ("M-S-" 4)
-    ("M-S-" 34)
-    ("M-" 3)
-    ("M-" 33)
-    ;; the second half is just the modifiers but with the num_lock encoding (128) added
-    ("C-" 133)
-    ("C-M-" 125)
-    ("C-M-" 165)
-    ("M-S-" 132)
-    ("M-S-" 162)
-    ("M-" 131)
-    ("M-" 161))
-  "List of combination of kbd modifiers for printable keys with their encoding.")
+(defvar kkp--modifier-flag-mapping
+  '((?S . 1)
+    (?M . (2 32))
+    (?C . 4)
+    (?s . 8)
+    (?H . 16)))
+
+
+(defun kkp--compute-flag-values (prefix)
+  "Compute all possible flag values for a modifier PREFIX."
+  (let ((vals '(1 129))) ;; this takes the NumLock Key into account
+    (dolist (char (cl-coerce prefix 'list))
+
+      (let ((flags (alist-get char kkp--modifier-flag-mapping)))
+        (cond ((null flags) nil)
+              ((listp flags)
+               (setq vals
+                     (flatten-list
+                      (cl-map 'list (lambda (val)
+                                      (cl-map 'list (lambda (flag) (+ flag val)) flags))
+                              vals))))
+              ((numberp flags)
+               (setq vals (mapcar (apply-partially #'+ flags) vals))))))
+    vals))
+
 
 (defvar kkp--key-modifiers
-  '(("M-" 3)
-    ("M-" 33)
-    ("C-" 5)
-    ("S-" 2)
-    ("C-S-" 6)
-    ("C-M-" 7)
-    ("C-M-" 37)
-    ("M-S-" 4)
-    ("M-S-" 34)
-    ("C-M-S-" 8)
-    ("C-M-S-" 38)
-    ;; the second half is just the modifiers but with the numlock encoding (128) added
-    ("M-" 131)
-    ("M-" 161)
-    ("C-" 133)
-    ("S-" 130)
-    ("C-S-" 134)
-    ("C-M-" 125)
-    ("C-M-" 165)
-    ("M-S-" 132)
-    ("M-S-" 162)
-    ("C-M-S-" 136)
-    ("C-M-S-" 166))
+  (let ((mappings nil)
+        (bindings '("C-" "M-" "H-" "s-" "S-"
+                    "C-M-" "C-H-" "C-s-" "C-S-"
+                    "M-H-" "M-s-" "M-S-"
+                    "H-s-" "H-S-"
+                    "s-S-"
+                    "C-M-H-" "C-M-s-" "C-M-S-" "C-H-s-" "C-H-S-" "C-s-S-"
+                    "M-H-s-" "M-H-S-" "M-s-S-"
+                    "H-s-S-"
+                    "C-M-H-s-" "C-M-H-S-" "C-M-s-S-" "C-H-s-S-"
+                    "M-H-s-S-"
+                    "C-M-H-s-S-")))
+    (dolist (bind bindings)
+      (mapc (lambda (elt) (push `(,bind ,elt) mappings))
+            (kkp--compute-flag-values bind)))
+    mappings)
   "List of combination of kbd modifiers for non-printable keys with their encoding.")
+
 
 (defvar kkp--printable-keys
   (let ((ascii-1 (cl-loop for c from 32 to 64 collect c))
