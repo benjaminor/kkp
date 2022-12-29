@@ -1,0 +1,65 @@
+#+TITLE: kkp.el -- Support in Emacs for the Kitty Keyboard Protocol
+
+* Overview
+
+This package provides support for the [[https://sw.kovidgoyal.net/kitty/keyboard-protocol][Kitty Keyboard Protocol]] (KKP).
+
+The protocol defines an alternative way to handle keyboard input for programs running in the terminal.
+This allows, if the terminal (and intermediaries such as terminal multiplexers) support the protocol as well,
+the transmission of more detailed information about a key event from the terminal to Emacs, e.g., a distinction between "<tab>" and "<C-i>".
+
+Currently, there exists another solution which solves the same problem, xterm's "modifyOtherKeys", which is already supported by Emacs (and activated by default if the terminal supports it).
+KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_lock>"), more key combinations (e.g., "C-M-S-l") and more modifiers, i.e., the Hyper and Super keys.
+It can also dynamically detect if a terminal supports the protocol, whereas Emacs has to deduce "modifyOtherKeys" support from the TERM variable.
+
+** Status: Beta
+This package supports "Disambiguate escape codes". "Report alternate keys" support should come soon.
+
+** Usage
+
+Install by using your package manager (quelpa or straight) or cloning the repository locally:
+
+#+begin_src emacs-lisp
+  (use-package kkp
+      :quelpa (kkp :repo "benjaminor/kkp" :fetcher github)
+      ;; :straight (kkp :repo "benjaminor/kkp" :fetcher github)
+      ;; :load-path "download-path/kkp"
+      :demand
+      :config
+      (kkp-enable))
+#+end_src
+
+You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting `kkp-active-enhancements`.
+
+Note that when you activate only `disambiguate-escape-codes` (which is the only one supported now),
+the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
+This means "M-S-." is not translated to "M-:" and Emacs will probably not find the proper keybinding.
+Support for "Report alternate keys" should fix this soon, but for now you can remap keys by using the `key-translation-map`:
+
+#+begin_src emacs-lisp
+(define-key key-translation-map (kbd "M-S-.") (kbd "M-:"))
+#+end_src
+
+** Background
+
+The standard xterm encoding is quite old and cannot transmit key combinations such as "C-.".
+
+At the request of an Emacs user, xterm introduced "modifyOtherKeys" in version 216.
+This feature encodes 'ordinary (i.e., "other") keys (such as "2") when
+modified by Shift-, Control-, Alt- or Meta-modifiers by an escape sequence' ([[https://invisible-island.net/xterm/manpage/xterm.html#VT100-Widget-Resources:modifyOtherKeys][source]]).
+By default, it uses a "CSI 27 ; modifier ; code ~" encoding (CSI is "\E[").
+
+By request of Paul Leonerd Evans, xterm introduced an alternative encoding for the same keys, using a CSI-u encoding ("CSI modifier ; code u").
+This is turned by an xterm setting, [[https://invisible-island.net/xterm/manpage/xterm.html#VT100-Widget-Resources:formatOtherKeys][formatOtherKeys]].
+Paul Leonerd Evans documented this approach in his [[https://www.leonerd.org.uk/hacks/fixterms/][fixterms]] proposals, but does not mention if it differs from the formatOtherKeys implementation in xterm. 
+
+Thomas Dickey documents the "modifyOtherKeys/formatOtherKeys" evolution in more detail [[https://invisible-island.net/xterm/modified-keys.html][here]].
+
+On the basis of the fixterms proposal, Kovid Goyal devised the Kitty Keyboard Protocol.
+This protocol does not deviate very much from the fixterms proposal:
+- It [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#bugs-in-fixterms][fixes]] some bugs in fixterms.
+- It enables dynamic runtime opt-in and opt-out of enabling enhancements (e.g., CSI-u encoding).
+- It optionally also supports reporting event types or alternate keys.
+
+For a complete list of enhancements, read [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement]].
+For Emacs, "Disambiguate escape codes" and "Report alternate keys" seem relevant.
