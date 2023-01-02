@@ -188,12 +188,15 @@
     (nreverse subseqs)))
 
 (defun kkp--ascii-chars-to-number (seq)
+  "Calculate an integer from a sequence SEQ of decimal ascii bytes."
   (string-to-number (apply #'string seq)))
 
 (defun kkp--is-bit-set (num bit)
+  "Check if BIT is set in NUM."
   (not (eql (logand num bit) 0)))
 
 (defun kkp--create-modifiers-string (modifier-num)
+  "Create a string of Emacs key modifiers according to MODIFIER-NUM."
 
   ;; add modifiers as defined in key-valid-p
   ;; Modifiers have to be specified in this order:
@@ -218,6 +221,9 @@
 
 
 (defun kkp--get-keycode-representation (keycode)
+  "Try to lookup the Emacs key representation for KEYCODE.
+This is either in the mapping or it is the string representation of the
+key codepoint."
   (let ((rep (alist-get keycode kkp--keycode-mapping)))
     (if rep
         rep
@@ -229,7 +235,9 @@
 (defvar kkp--acceptable-terminators
   '(?u ?~ ?A ?B ?C ?D ?E ?F ?H ?P ?Q ?R ?S))
 
-(defun kkp--process-keys (first-num)
+(defun kkp--process-keys (first-byte)
+  "Read input from terminal to parse key events to an Emacs keybinding.
+FIRST-BYTE is the byte read before this function is called."
 
   ;; read input from terminal
   ;; extract keycode, shifted-key, modifiers, text-as-codepoints
@@ -238,7 +246,7 @@
   ;; check if keycode has shifted key ->
   ;; set keychar to shifted key & remove Shift from modifiers
 
-  (let ((terminal-input `(,first-num)))
+  (let ((terminal-input `(,first-byte)))
 
     ;; read in events from stdin until we have found a terminator
     (while (not (member (cl-first terminal-input) kkp--acceptable-terminators))

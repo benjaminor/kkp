@@ -1,4 +1,5 @@
 #+TITLE: kkp.el -- Support in Emacs for the Kitty Keyboard Protocol
+#+OPTIONS: ^:{}
 
 * Overview
 
@@ -9,11 +10,11 @@ This allows, if the terminal (and intermediaries such as terminal multiplexers) 
 the transmission of more detailed information about a key event from the terminal to Emacs, e.g., a distinction between "<tab>" and "C-i".
 
 Currently, there exists another solution which solves the same problem, xterm's "modifyOtherKeys", which is already supported by Emacs (and activated by default if the terminal supports it).
-KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_lock>"), more key combinations (e.g., "C-M-S-l") and more modifiers, i.e., the Hyper and Super keys.
+KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_Lock>"), more key combinations (e.g., "C-M-S-l") and more modifiers, i.e., the Hyper and Super keys.
 It can also dynamically detect if a terminal supports the protocol, whereas Emacs has to deduce "modifyOtherKeys" support from the TERM variable.
 
 ** Status: Beta
-This package supports "Disambiguate escape codes". "Report alternate keys" support should come soon.
+This package supports the "Disambiguate escape codes" and "Report alternate keys" enhancements. It lacks testing on non-western keyboards.
 
 ** Usage
 
@@ -29,12 +30,12 @@ Install by using your package manager (quelpa or straight) or cloning the reposi
       (kkp-enable))
 #+end_src
 
-You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting `kkp-active-enhancements`.
+You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
 
-Note that when you activate only `disambiguate-escape-codes` (which is the only one supported now),
+Note that when you activate only =disambiguate-escape-codes=,
 the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
 This means "M-S-." is not translated to "M-:" and Emacs will probably not find the proper keybinding.
-Support for "Report alternate keys" should fix this soon, but for now you can remap keys by using the `key-translation-map`:
+"Report alternate keys" fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
 
 #+begin_src emacs-lisp
 (define-key key-translation-map (kbd "M-S-.") (kbd "M-:"))
@@ -62,4 +63,4 @@ This protocol does not deviate very much from the fixterms proposal:
 - It optionally also supports reporting event types or alternate keys.
 
 For a complete list of enhancements, read [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement]].
-For Emacs, "Disambiguate escape codes" and "Report alternate keys" seem relevant.
+For Emacs, other enhancements than "Disambiguate escape codes" and "Report alternate keys" do not appear to be relevant.
