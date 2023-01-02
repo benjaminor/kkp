@@ -31,10 +31,11 @@ Install by using your package manager (quelpa or straight) or cloning the reposi
 #+end_src
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
+By default, it is set to ='(disambiguate-escape-codes report-alternate-keys)=.
 
 Note that when you activate only =disambiguate-escape-codes=,
 the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
-This means "M-S-." is not translated to "M-:" and Emacs will probably not find the proper keybinding.
+This means "M-S-." is not translated to "M-:" (on a German keyboard) and Emacs will probably not find the proper keybinding.
 "Report alternate keys" fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
 
 #+begin_src emacs-lisp
