@@ -229,9 +229,6 @@ key codepoint."
         rep
       (string keycode))))
 
-(defvar kkp--acceptable-sequence-bytes
-  (cl-concatenate 'list '(?\; ?:) (cl-loop for c from ?0 to ?9 collect c)))
-
 (defvar kkp--acceptable-terminators
   '(?u ?~ ?A ?B ?C ?D ?E ?F ?H ?P ?Q ?R ?S))
 
@@ -243,8 +240,6 @@ FIRST-BYTE is the byte read before this function is called."
   ;; extract keycode, shifted-key, modifiers, text-as-codepoints
   ;; generate and return keybinding string
 
-  ;; check if keycode has shifted key ->
-  ;; set keychar to shifted key & remove Shift from modifiers
 
   (let ((terminal-input `(,first-byte)))
 
@@ -256,7 +251,6 @@ FIRST-BYTE is the byte read before this function is called."
     ;; reverse input has we pushed to events to the front of the list
     (setq terminal-input (nreverse terminal-input))
 
-    ;; extract keycode, shifted-key, modifiers, text-as-codepoints
     ;; three different terminator types: u, ~, and letters
     ;; u und tilde have same structure:
     ;; keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
@@ -266,6 +260,8 @@ FIRST-BYTE is the byte read before this function is called."
         ((terminator (car (last terminal-input))))
       (if
           (member terminator '(?u ?~))
+
+          ;; keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
           (progn
             (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
                    (splitted-keycodes (kkp--cl-split ?: (cl-first splitted-terminal-input))) ;; get keycodes from sequence
@@ -281,6 +277,9 @@ FIRST-BYTE is the byte read before this function is called."
                          (kkp--ascii-chars-to-number modifiers))
                       0)))
 
+
+              ;; check if keycode has shifted key ->
+              ;; set keychar to shifted key & remove Shift from modifiers
               (if
                   (and
                    shifted-key-code
@@ -371,11 +370,11 @@ This function code is copied from `xterm--query`."
     (when (not reply)
       (error "Terminal did not reply correctly to query"))
 
-    (let ((intflag (- (nth 3 reply) ?0))
+    (let ((enhancement-flag (- (nth 3 reply) ?0))
           (enabled-enhancements nil))
 
       (dolist (bind kkp--progressive-enhancement-flags)
-        (when (> (logand intflag (kkp--get-enhancement-bit bind)) 0)
+        (when (> (logand enhancement-flag (kkp--get-enhancement-bit bind)) 0)
           (push (car bind) enabled-enhancements)))
       enabled-enhancements)))
 
@@ -400,12 +399,12 @@ This function code is copied from `xterm--query`."
 (defvar kkp--terminals-with-active-kkp
   '())
 
-(defun kkp--pop-terminal-flag (&optional terminal)
+(defun kkp--pop-terminal-flag (terminal)
   "Send query to TERMINAL (if nil, the current one) to pop previously pushed flags."
   (unless (or
            (display-graphic-p)
-           (member terminal kkp--terminals-with-active-kkp))
-    (delete terminal kkp--terminals-with-active-kkp)
+           (not (member terminal kkp--terminals-with-active-kkp)))
+    (setq kkp--terminals-with-active-kkp (delete terminal kkp--terminals-with-active-kkp))
     (kkp--query-terminal-sync "<u") terminal))
 
 (defun kkp-check-progressive-enhancement-flags ()
@@ -415,12 +414,26 @@ This function code is copied from `xterm--query`."
       (message "%s" (kkp--enabled-terminal-enhancements))
     (message "KKP not supported in this terminal.")))
 
-(defun kkp-terminal-disable ()
+(defun kkp-disable-in-terminal ()
   "Disable in this terminal where command is executed, the activated enhancements."
   (interactive)
   (dolist (prefix kkp--key-prefixes)
     (define-key input-decode-map (kkp--csi-escape (string prefix)) nil t))
-  (kkp--query-terminal-sync "=0;1u"))
+  (kkp--pop-terminal-flag (selected-frame)))
+
+(defun kkp--teardown-on-emacs-exit()
+  (dolist (terminal kkp--terminals-with-active-kkp)
+    (kkp--pop-terminal-flag terminal)))
+
+(defun kkp-enable-in-terminal ()
+  "Enable KKP support in Emacs running in the terminal."
+  (interactive)
+  (unless
+      (or
+       (display-graphic-p)
+       (member (selected-frame) kkp--terminals-with-active-kkp))
+    (kkp--query-terminal-async "?u"
+                               '(("\e[?" . kkp--terminal-setup)))))
 
 (defun kkp-enable ()
   "Enable support for the Kitty Keyboard Protocol.
@@ -429,11 +442,16 @@ specified in `kkp-active-enhancements`."
 
   (push 'kkp--pop-terminal-flag delete-frame-functions)
   ;; call setup for future terminals to be opened
-  (add-hook 'tty-setup-hook 'kkp-terminal-setup)
+  (add-hook 'tty-setup-hook 'kkp-enable-in-terminal)
+  (add-hook 'kill-emacs-hook 'kkp--teardown-on-emacs-exit)
 
   ;; call setup for this terminal (if it is a terminal, else this does nothing)
-  (kkp-terminal-setup))
+  (kkp-enable-in-terminal))
 
+(defun kkp-disable ()
+  "Disable support for KKP in Emacs.
+This removes the hooks to automatically enable KKP in new terminals."
+  (remove-hook 'tty-setup-hook 'kkp-enable-in-terminal))
 
 (defun kkp--terminal-setup ()
   "Run setup to enable KKP support."
@@ -442,27 +460,18 @@ specified in `kkp-active-enhancements`."
     (when (and (<= ?0 a ?9) ;; TODO: flag can be two bytes
                (eql b ?u))
 
-      (message "Enabled KKP support in this terminal.")
-      (let ((intflag (kkp--calculate-flags-integer)))
-        (unless (eq intflag 0)
-          (kkp--query-terminal-sync (format ">%su" intflag))
+      (if (member (selected-frame) kkp--terminals-with-active-kkp)
+          (message "KKP already enabled in this terminal.")
+        (progn
+          (let ((enhancement-flag (kkp--calculate-flags-integer)))
+            (unless (eq enhancement-flag 0)
+              (kkp--query-terminal-sync (format ">%su" enhancement-flag))
+              (message "Enabled KKP support in this terminal.")
+              (push (selected-frame) kkp--terminals-with-active-kkp)
 
-          ;; we register functions for each prefix to not interfere with e.g., M-[ I
-          (dolist (prefix kkp--key-prefixes)
-            (define-key input-decode-map (kkp--csi-escape (string prefix)) (lambda (_prompt) (kkp--process-keys prefix))))
-
-          (let ((frame (selected-frame)))
-            (add-hook 'kill-emacs-hook `(lambda () (kkp--pop-terminal-flag ',frame)))))))))
-
-;; this function can be called more than one time, as each time we call it, we also add an pop-flag function to the exit hooks
-(defun kkp-terminal-setup ()
-  "Enable KKP support in Emacs running in the terminal."
-  (unless
-      (or
-       (display-graphic-p)
-       (member (selected-frame) kkp--terminals-with-active-kkp))
-    (kkp--query-terminal-async "?u"
-                               '(("\e[?" . kkp--terminal-setup)))))
+              ;; we register functions for each prefix to not interfere with e.g., M-[ I
+              (dolist (prefix kkp--key-prefixes)
+                (define-key input-decode-map (kkp--csi-escape (string prefix)) (lambda (_prompt) (kkp--process-keys prefix)))))))))))
 
 (provide 'kkp)
 ;;; kkp.el ends here
