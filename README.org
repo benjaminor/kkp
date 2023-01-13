@@ -31,11 +31,11 @@ Install by using your package manager (quelpa or straight) or cloning the reposi
 #+end_src
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
-By default, it is set to ='(disambiguate-escape-codes report-alternate-keys)=.
+By default, it is set to ~'(disambiguate-escape-codes report-alternate-keys)~.
 
 Note that when you activate only =disambiguate-escape-codes=,
 the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
-This means "M-S-." is not translated to "M-:" (on a German keyboard) and Emacs will probably not find the proper keybinding.
+This means "M-S-." (Meta-Shift-.) is not translated to "M-:" (on a German keyboard) and Emacs will probably not find the proper keybinding.
 "Report alternate keys" fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
 
 #+begin_src emacs-lisp
@@ -49,7 +49,7 @@ The standard xterm encoding is quite old and cannot transmit key combinations su
 At the request of an Emacs user, xterm introduced "modifyOtherKeys" in version 216.
 This feature encodes 'ordinary (i.e., "other") keys (such as "2") when
 modified by Shift-, Control-, Alt- or Meta-modifiers by an escape sequence' ([[https://invisible-island.net/xterm/manpage/xterm.html#VT100-Widget-Resources:modifyOtherKeys][source]]).
-By default, it uses a "CSI 27 ; modifier ; code ~" encoding (CSI is "\e[").
+By default, it uses a "CSI 27 ; modifier ; code ~" encoding. CSI (Control Sequence Introducer) is the bytes sequence "\e[", i.e., \x1b\x5b.
 
 By request of Paul Leonerd Evans, xterm introduced an alternative encoding for the same keys, using a CSI-u encoding ("CSI modifier ; code u").
 This is turned on by an xterm setting, [[https://invisible-island.net/xterm/manpage/xterm.html#VT100-Widget-Resources:formatOtherKeys][formatOtherKeys]].
