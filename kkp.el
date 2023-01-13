@@ -475,6 +475,12 @@ This removes the hooks to automatically enable KKP in new terminals."
   (remove-hook 'tty-setup-hook 'kkp-enable-in-terminal))
 
 
+(defun kkp-check-terminal-supports-kkp ()
+  "Message if terminal supports kkp."
+  (interactive)
+  (message "KKP%s supported in this terminal"
+           (if (kkp--check-terminal-supports-kkp)
+               "" " not")))
 
 
 (defun kkp-check-progressive-enhancement-flags ()
