@@ -1,12 +1,12 @@
-;;; kkp.el --- Enable emacs support for the Kitty Keyboard Protocol (one flavor of the CSI-u encoding)  -*- lexical-binding: t -*-
+;;; kkp.el --- Enable support for the Kitty Keyboard Protocol -*- lexical-binding: t -*-
 
-2; Copyright (C) 2023  Benjamin Orthen
+;; Copyright (C) 2023  Benjamin Orthen
 
 ;; Author: Benjamin Orthen <contact@orthen.net>
 ;; Maintainer: Benjamin Orthen <contact@orthen.net>
-;; Keywords: terminal
+;; Keywords: terminals
 ;; Version: 0.1
-;; Homepage: https://github.com/benjaminor/kkp
+;; URL: https://github.com/benjaminor/kkp
 ;; Package-Requires: ((emacs "27.1"))
 
 ;;; Commentary:
@@ -31,7 +31,8 @@
 ;; - CSI 1; modifier {ABCDEFHPQRS}
 
 ;;; Code:
-(eval-when-compile (require 'cl-lib))
+(require 'cl-lib)
+(require 'term/xterm)
 
 (defvar kkp-terminal-query-timeout 0.1
   "Seconds to wait for an answer from the terminal. Nil means no timeout.")
@@ -219,7 +220,7 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
   "Calculate an integer from a sequence SEQ of decimal ascii bytes."
   (string-to-number (apply #'string seq)))
 
-(defun kkp--is-bit-set (num bit)
+(defun kkp--bit-set-p (num bit)
   "Check if BIT is set in NUM."
   (not (eql (logand num bit) 0)))
 
@@ -232,18 +233,18 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
   ;;    Alt-Control-Hyper-Meta-Shift-super
 
   (let ((key-str ""))
-    (when (kkp--is-bit-set modifier-num 4) ;; Ctrl
+    (when (kkp--bit-set-p modifier-num 4) ;; Ctrl
       (setq key-str (concat key-str "C-")))
-    (when (kkp--is-bit-set modifier-num 16) ;; Hyper
+    (when (kkp--bit-set-p modifier-num 16) ;; Hyper
       (setq key-str (concat key-str "H-")))
     (when
         (or
-         (kkp--is-bit-set modifier-num 2) ;; Alt = Meta
-         (kkp--is-bit-set modifier-num 32)) ;; Meta
+         (kkp--bit-set-p modifier-num 2) ;; Alt = Meta
+         (kkp--bit-set-p modifier-num 32)) ;; Meta
       (setq key-str (concat key-str "M-")))
-    (when (kkp--is-bit-set modifier-num 1) ;; shift
+    (when (kkp--bit-set-p modifier-num 1) ;; shift
       (setq key-str (concat key-str "S-")))
-    (when (kkp--is-bit-set modifier-num 8) ;; super
+    (when (kkp--bit-set-p modifier-num 8) ;; super
       (setq key-str (concat key-str "s-")))
     key-str))
 
@@ -387,7 +388,7 @@ This function code is copied from `xterm--query`."
       enabled-enhancements)))
 
 
-(defun kkp--check-terminal-supports-kkp ()
+(defun kkp--terminal-supports-kkp-p ()
   "Check if the terminal supports the Kitty Keyboard Protocol."
   (let ((reply (kkp--query-terminal-sync "?u")))
     (and
@@ -398,8 +399,8 @@ This function code is copied from `xterm--query`."
 
 (defun kkp--calculate-flags-integer ()
   "Calculate the flag integer to send to the terminal to activate the enhancemets."
-  (cl-reduce #'(lambda (sum elt) (+ sum
-                               (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
+  (cl-reduce (lambda (sum elt) (+ sum
+                                  (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
 
@@ -420,15 +421,14 @@ This function code is copied from `xterm--query`."
                (eql b ?u))
       (if (member (selected-frame) kkp--terminals-with-active-kkp)
           (message "KKP already enabled in this terminal.")
-        (progn
-          (let ((enhancement-flag (kkp--calculate-flags-integer)))
-            (unless (eq enhancement-flag 0)
-              (kkp--query-terminal-sync (format ">%su" enhancement-flag))
-              (push (selected-frame) kkp--terminals-with-active-kkp)
+        (let ((enhancement-flag (kkp--calculate-flags-integer)))
+          (unless (eq enhancement-flag 0)
+            (kkp--query-terminal-sync (format ">%su" enhancement-flag))
+            (push (selected-frame) kkp--terminals-with-active-kkp)
 
-              ;; we register functions for each prefix to not interfere with e.g., M-[ I
-              (dolist (prefix kkp--key-prefixes)
-                (define-key input-decode-map (kkp--csi-escape (string prefix)) (lambda (_prompt) (kkp--process-keys prefix)))))))))))
+            ;; we register functions for each prefix to not interfere with e.g., M-[ I
+            (dolist (prefix kkp--key-prefixes)
+              (define-key input-decode-map (kkp--csi-escape (string prefix)) (lambda (_prompt) (kkp--process-keys prefix))))))))))
 
 
 (defun kkp--teardown-on-emacs-exit()
@@ -437,6 +437,7 @@ This function code is copied from `xterm--query`."
     (kkp--pop-terminal-flag terminal)))
 
 
+;;;###autoload
 (defun kkp-enable-in-terminal ()
   "Enable KKP support in Emacs running in the terminal."
   (interactive)
@@ -448,6 +449,7 @@ This function code is copied from `xterm--query`."
                                '(("\e[?" . kkp--terminal-setup)))))
 
 
+;;;###autoload
 (defun kkp-disable-in-terminal ()
   "Disable in this terminal where command is executed, the activated enhancements."
   (interactive)
@@ -455,38 +457,41 @@ This function code is copied from `xterm--query`."
     (define-key input-decode-map (kkp--csi-escape (string prefix)) nil t))
   (kkp--pop-terminal-flag (selected-frame)))
 
-
+;;;###autoload
 (defun kkp-enable ()
   "Enable support for the Kitty Keyboard Protocol.
 This activates, if a terminal supports it, the protocol enhancements
 specified in `kkp-active-enhancements`."
-  (push 'kkp--pop-terminal-flag delete-frame-functions)
+  (push #'kkp--pop-terminal-flag delete-frame-functions)
   ;; call setup for future terminals to be opened
-  (add-hook 'tty-setup-hook 'kkp-enable-in-terminal)
+  (add-hook 'tty-setup-hook #'kkp-enable-in-terminal)
   ;; call teardown for terminals to be closed
-  (add-hook 'kill-emacs-hook 'kkp--teardown-on-emacs-exit)
+  (add-hook 'kill-emacs-hook #'kkp--teardown-on-emacs-exit)
   ;; call setup for this terminal (if it is a terminal, else this does nothing)
   (kkp-enable-in-terminal))
 
 
+;;;###autoload
 (defun kkp-disable ()
   "Disable support for KKP in Emacs.
 This removes the hooks to automatically enable KKP in new terminals."
-  (remove-hook 'tty-setup-hook 'kkp-enable-in-terminal))
+  (remove-hook 'tty-setup-hook #'kkp-enable-in-terminal))
 
 
+;;;###autoload
 (defun kkp-check-terminal-supports-kkp ()
   "Message if terminal supports kkp."
   (interactive)
   (message "KKP%s supported in this terminal"
-           (if (kkp--check-terminal-supports-kkp)
+           (if (kkp--terminal-supports-kkp-p)
                "" " not")))
 
 
+;;;###autoload
 (defun kkp-check-progressive-enhancement-flags ()
   "Message, if terminal supports kkp, currently enabled enhancements."
   (interactive)
-  (if (kkp--check-terminal-supports-kkp)
+  (if (kkp--terminal-supports-kkp-p)
       (message "%s" (kkp--enabled-terminal-enhancements))
     (message "KKP not supported in this terminal.")))
 
