@@ -1,4 +1,4 @@
-#+TITLE: kkp.el -- Support in Emacs for the Kitty Keyboard Protocol
+#+TITLE: kkp.el -- Support for the Kitty Keyboard protocol in Emacs
 #+OPTIONS: ^:{}
 
 * Overview
@@ -7,27 +7,27 @@ This package provides support for the [[https://sw.kovidgoyal.net/kitty/keyboard
 
 The protocol defines an alternative way to handle keyboard input for programs running in the terminal.
 This allows, if the terminal (and intermediaries such as terminal multiplexers) support the protocol as well,
-the transmission of more detailed information about a key event from the terminal to Emacs, e.g., a distinction between "<tab>" and "C-i".
+the transmission of more detailed information about a key event from the terminal to Emacs, e.g., it transmits "<tab>" and "C-i" differently.
 
 Currently, there exists another solution which solves the same problem, xterm's "modifyOtherKeys", which is already supported by Emacs (and activated by default if the terminal supports it).
 KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_Lock>"), more key combinations (e.g., "C-M-S-l") and more modifiers, i.e., the Hyper and Super keys.
 It can also dynamically detect if a terminal supports the protocol, whereas Emacs has to deduce "modifyOtherKeys" support from the TERM variable.
 
 ** Status: Beta
-This package supports the "Disambiguate escape codes" and "Report alternate keys" enhancements. It lacks testing on non-western keyboards.
+This package supports the "Disambiguate escape codes" and "Report alternate keys" enhancements. It has not been tested extensively.
 
 ** Usage
 
-Install by using your package manager (quelpa or straight) or cloning the repository locally:
+Install by using your favorite package manager (e.g., quelpa or straight) or cloning the repository locally and putting it in your load-path:
 
 #+begin_src emacs-lisp
   (use-package kkp
-      :quelpa (kkp :repo "benjaminor/kkp" :fetcher github)
-      ;; :straight (kkp :repo "benjaminor/kkp" :fetcher github)
-      ;; :load-path "download-path/kkp"
-      :demand
-      :config
-      (kkp-enable))
+    :quelpa (kkp :repo "benjaminor/kkp" :fetcher github)
+    ;; :straight (kkp :type git :repo "benjaminor/kkp" :host github)
+    ;; :load-path "download-path/kkp"
+    :demand
+    :config
+    (kkp-enable))
 #+end_src
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
@@ -58,9 +58,9 @@ Paul Leonerd Evans documented this approach in his [[https://www.leonerd.org.uk/
 Thomas Dickey documents the "modifyOtherKeys/formatOtherKeys" evolution in more detail [[https://invisible-island.net/xterm/modified-keys.html][here]].
 
 On the basis of the fixterms proposal, Kovid Goyal devised the Kitty Keyboard Protocol.
-This protocol does not deviate very much from the fixterms proposal:
+This protocol does not deviate a lot from the fixterms proposal:
 - It [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#bugs-in-fixterms][fixes]] some bugs in fixterms.
-- It enables dynamic runtime opt-in and opt-out of enabling enhancements (e.g., CSI-u encoding).
+- It enables runtime opt-in and opt-out of enhancements (e.g., CSI-u encoding).
 - It optionally also supports reporting event types or alternate keys.
 
 For a complete list of enhancements, read [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement]].
