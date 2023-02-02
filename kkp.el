@@ -46,6 +46,66 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
   '((disambiguate-escape-codes . (:bit 1))
     (report-alternate-keys . (:bit 4))))
 
+;; These mirror the behavior of `mac-command-modifier' and friends.
+;; They specify which virtual key the physical key maps to.
+(defvar kkp-shift-modifier 'shift
+  "This variable describes the behavior of the shift key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-alt-modifier 'alt
+  "This variable describes the behavior of the alt key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-control-modifier 'control
+  "This variable describes the behavior of the ctrl key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-super-modifier 'super
+  "This variable describes the behavior of the super key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-hyper-modifier 'hyper
+  "This variable describes the behavior of the hyper key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-meta-modifier 'meta
+  "This variable describes the behavior of the meta key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-caps-lock-modifier 'caps-lock
+  "This variable describes the behavior of the caps key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+(defvar kkp-num-lock-modifier 'num-lock
+  "This variable describes the behavior of the num key.
+
+It is one of the symbols `shift', `alt', `control', `super',
+`hyper', `meta', `caps-lock' or `num-lock'.")
+
+;; kitty modifier encoding
+(put 'kkp-shift-modifier :encoding 1)
+(put 'kkp-alt-modifier :encoding 2)
+(put 'kkp-control-modifier :encoding 4)
+(put 'kkp-super-modifier :encoding 8)
+(put 'kkp-hyper-modifier :encoding 16)
+(put 'kkp-meta-modifier :encoding 32)
+(put 'kkp-caps-lock-modifier :encoding 64)
+(put 'kkp-num-lock-modifier :encoding 128)
+
 (defvar kkp--printable-ascii-letters
   (cl-loop for c from ?a to ?z collect c))
 
@@ -197,6 +257,26 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
 
 
 
+(defun kkp--mod-bits (modifier)
+  "Return the KKP encoding bits that should be interpreted as MODIFIER.
+
+MODIFIER is one of the symbols `shift', `alt', `control',
+`super', `hyper', `meta', `caps-lock' or `num-lock'."
+  (apply #'logior
+         (cl-map 'sequence
+                 (lambda (sym)
+                   (get sym :encoding))
+                 (cl-remove-if-not
+                  (lambda (sym) (eq (symbol-value sym) modifier))
+                  '(kkp-shift-modifier
+                    kkp-alt-modifier
+                    kkp-control-modifier
+                    kkp-super-modifier
+                    kkp-hyper-modifier
+                    kkp-meta-modifier
+                    kkp-caps-lock-modifier
+                    kkp-num-lock-modifier)))))
+
 (defun kkp--csi-escape (&rest args)
   "Prepend the CSI bytes before the ARGS."
   (concat "\e[" (apply 'concat args)))
@@ -233,18 +313,17 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
   ;;    Alt-Control-Hyper-Meta-Shift-super
 
   (let ((key-str ""))
-    (when (kkp--bit-set-p modifier-num 4) ;; Ctrl
+    (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'alt))
+      (setq key-str (concat key-str "A-")))
+    (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'control))
       (setq key-str (concat key-str "C-")))
-    (when (kkp--bit-set-p modifier-num 16) ;; Hyper
+    (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'hyper))
       (setq key-str (concat key-str "H-")))
-    (when
-        (or
-         (kkp--bit-set-p modifier-num 2) ;; Alt = Meta
-         (kkp--bit-set-p modifier-num 32)) ;; Meta
-      (setq key-str (concat key-str "M-")))
-    (when (kkp--bit-set-p modifier-num 1) ;; shift
+    (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'meta))
+       (setq key-str (concat key-str "M-")))
+    (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'shift))
       (setq key-str (concat key-str "S-")))
-    (when (kkp--bit-set-p modifier-num 8) ;; super
+    (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'super))
       (setq key-str (concat key-str "s-")))
     key-str))
 
