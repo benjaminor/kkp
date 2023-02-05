@@ -215,7 +215,7 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
 
 (defun kkp--csi-escape (&rest args)
   "Prepend the CSI bytes before the ARGS."
-  (concat "\e[" (apply 'concat args)))
+  (concat "\e[" (apply #'concat args)))
 
 (defun kkp--cl-split (separator seq)
   "Split SEQ along SEPARATOR and return all subsequences."
