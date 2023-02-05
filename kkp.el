@@ -416,7 +416,7 @@ This function code is copied from `xterm--query`."
 (defun kkp--calculate-flags-integer ()
   "Calculate the flag integer to send to the terminal to activate the enhancemets."
   (cl-reduce (lambda (sum elt) (+ sum
-                                  (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
+                             (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
 
@@ -470,7 +470,7 @@ This function code is copied from `xterm--query`."
   "Disable in this terminal where command is executed, the activated enhancements."
   (interactive)
   (dolist (prefix kkp--key-prefixes)
-    (define-key input-decode-map (kkp--csi-escape (string prefix)) nil t))
+    (define-key input-decode-map (kkp--csi-escape (string prefix)) nil))
   (kkp--pop-terminal-flag (selected-frame)))
 
 ;;;###autoload
