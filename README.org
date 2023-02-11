@@ -27,11 +27,12 @@ Install by using your favorite package manager (e.g., quelpa or straight) or clo
     ;; :load-path "download-path/kkp"
     :demand
     :config
+    ;; (setq kkp-alt-modifier 'alt) ;; use this if you want to map the Alt keyboard modifier to Alt in Emacs (and not to Meta)
     (kkp-enable))
 #+end_src
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
-By default, it is set to ~'(disambiguate-escape-codes report-alternate-keys)~.
+By default, it is set to ='(disambiguate-escape-codes report-alternate-keys)=.
 
 Note that when you activate only =disambiguate-escape-codes=,
 the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
