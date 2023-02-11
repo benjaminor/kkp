@@ -70,7 +70,7 @@ Possible values are the keys in `kkp--progressive-enhancement-flags`.")
 It is one of the symbols `shift', `alt', `control', `super',
 `hyper', `meta', `caps-lock' or `num-lock'.")
 
-(defvar kkp-alt-modifier 'alt
+(defvar kkp-alt-modifier 'meta
   "This variable describes the behavior of the alt key.
 
 It is one of the symbols `shift', `alt', `control', `super',
@@ -336,7 +336,7 @@ MODIFIER is one of the symbols `shift', `alt', `control',
     (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'hyper))
       (setq key-str (concat key-str "H-")))
     (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'meta))
-       (setq key-str (concat key-str "M-")))
+      (setq key-str (concat key-str "M-")))
     (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'shift))
       (setq key-str (concat key-str "S-")))
     (when (kkp--bit-set-p modifier-num (kkp--mod-bits 'super))
