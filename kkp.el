@@ -470,7 +470,7 @@ This function returns the Emacs keybinding associated with the sequence read."
 
 
 (defun kkp--query-terminal-async (query handlers terminal)
-  "Send QUERY string to the terminal and watch for a response.
+  "Send QUERY string to TERMINAL and register HANDLERS for a response.
 HANDLERS is an alist with elements of the form (STRING . FUNCTION).
 We run the first FUNCTION whose STRING matches the input events.
 This function code is copied from `xterm--query`."
@@ -584,6 +584,17 @@ does not have focus, as input from this terminal cannot be reliably read."
   (interactive)
   (kkp--terminal-teardown (selected-frame)))
 
+(defvar kkp--setup-visited-terminal-list
+  nil)
+
+(defun kkp-focus-change (&rest _)
+  "Enable KKP when focus on terminal which has not yet enabled it once."
+  (let ((terminal (selected-frame)))
+    (when
+        (and (not (member terminal kkp--setup-visited-terminal-list))
+             (frame-focus-state terminal))
+      (kkp-try-enable-in-terminal terminal))))
+
 ;;;###autoload
 (define-minor-mode global-kkp-mode
   "Toggle KKP support in all terminal frames."
@@ -598,14 +609,18 @@ does not have focus, as input from this terminal cannot be reliably read."
     (add-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
     ;; we call this on each frame teardown, this has no effects if kkp is not enabled
     (add-to-list 'delete-frame-functions #'kkp--terminal-teardown)
-    (dolist (frame (frame-list))
-      (with-selected-frame frame
-        (unless (display-graphic-p)
-          (kkp-try-enable-in-terminal)))))
+
+    ;; this is by far the most reliable method to enable kkp in all associated terminals
+    ;; trying to switch to each terminal with `with-selected-frame' does not work very well
+    ;; as input from `read-event' cannot be reliably read from the corresponding terminal
+    (add-function :after after-focus-change-function #'kkp-focus-change)
+    (setq kkp--setup-visited-terminal-list nil)
+    (kkp-try-enable-in-terminal))
    (t
     (kkp--disable-in-active-terminals)
     (remove-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
     (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
+    (remove-function after-focus-change-function #'kkp-focus-change)
     (setq delete-frame-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
 
 ;;;###autoload
