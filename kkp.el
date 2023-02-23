@@ -525,10 +525,9 @@ does not have focus, as input from this terminal cannot be reliably read."
 
 
 (defun kkp--terminal-teardown (terminal)
-  "FIXME: Send query to TERMINAL (if nil, the current one) to pop previously pushed flags."
-  (unless (or
-           (display-graphic-p)
-           (not (member terminal kkp--active-terminal-list)))
+  "Run procedures to disable kkp in TERMINAL (if nil, the current one)."
+  (unless
+      (not (member terminal kkp--active-terminal-list))
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
     (with-selected-frame terminal
@@ -536,22 +535,31 @@ does not have focus, as input from this terminal cannot be reliably read."
         (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
 
 
-(defun kkp--terminal-setup ()
-  "Run setup to enable KKP support."
-  (let ((a (read-event))
-        (b (read-event)))
-    (when (and (<= ?0 a ?9) ;; TODO: flag can be two bytes
-               (eql b ?u))
-      (if (member (selected-frame) kkp--active-terminal-list)
-          (message "KKP already enabled in this terminal.")
-        (let ((enhancement-flag (kkp--calculate-flags-integer)))
-          (unless (eq enhancement-flag 0)
-            (push (selected-frame) kkp--active-terminal-list)
-        (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
+(defun kkp--terminal-setup-async ()
+  "Run setup to enable KKP support.
+This does not work well if checking for another terminal which
+does not have focus, as input from this terminal cannot be reliably read."
+  (let ((inhibit-redisplay t))
+    (let ((a (read-event))
+          (b (read-event)))
+      (when (and (<= ?0 a ?9) ;; TODO: flag can be two bytes
+                 (eql b ?u))
+        (kkp--terminal-setup (selected-frame))))))
 
-            ;; we register functions for each prefix to not interfere with e.g., M-[ I
-            (dolist (prefix kkp--key-prefixes)
-              (define-key input-decode-map (kkp--csi-escape (string prefix)) (lambda (_prompt) (kkp--process-keys prefix))))))))))
+(defun kkp--terminal-setup (terminal)
+  "Run setup to enable KKP support in TERMINAL."
+  (unless (member terminal kkp--active-terminal-list)
+    (let ((enhancement-flag (kkp--calculate-flags-integer)))
+      (unless (eq enhancement-flag 0)
+        (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
+        (push terminal kkp--active-terminal-list)
+
+        ;; we register functions for each prefix to not interfere with e.g., M-[ I
+        (with-selected-frame terminal
+          (dolist (prefix kkp--key-prefixes)
+            (define-key input-decode-map (kkp--csi-escape (string prefix))
+                        (lambda (_prompt) (kkp--process-keys prefix)))))))))
+
 
 
 (defun kkp--disable-in-active-terminals()
@@ -559,18 +567,16 @@ does not have focus, as input from this terminal cannot be reliably read."
   (dolist (terminal kkp--active-terminal-list)
     (kkp--terminal-teardown terminal)))
 
-
-;;;###autoload
-(defun kkp-try-enable-in-terminal ()
-  "Enable KKP support in Emacs running in the terminal."
+(cl-defun kkp-try-enable-in-terminal (&optional (terminal (selected-frame)))
+  "Enable KKP support in Emacs running in the TERMINAL."
   (interactive)
-  (unless
-      (or
-       (display-graphic-p)
-       (member (selected-frame) kkp--active-terminal-list))
-    (kkp--query-terminal-async "?u"
-                               '(("\e[?" . kkp--terminal-setup)))))
-
+  (when
+      (eq t (terminal-live-p terminal))
+    (push terminal kkp--setup-visited-terminal-list)
+    (unless
+        (member terminal kkp--active-terminal-list)
+      (kkp--query-terminal-async "?u"
+                                 '(("\e[?" . kkp--terminal-setup-async)) terminal))))
 
 ;;;###autoload
 (defun kkp-disable-in-terminal ()
