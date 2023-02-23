@@ -567,15 +567,16 @@ This function code is copied from `xterm--query`."
     ;; call teardown for terminals to be closed
     (add-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
     ;; we call this on each frame teardown, this has no effects if kkp is not enabled
-    (push #'kkp--terminal-teardown delete-frame-functions)
+    (add-to-list 'delete-frame-functions #'kkp--terminal-teardown)
     (dolist (frame (frame-list))
       (with-selected-frame frame
         (unless (display-graphic-p)
           (kkp-try-enable-in-terminal)))))
    (t
-    (remove-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
     (kkp--disable-in-active-terminals)
-    (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals))))
+    (remove-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
+    (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
+    (setq delete-frame-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
 
 ;;;###autoload
 (defun kkp-check-terminal-supports-kkp ()
