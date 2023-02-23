@@ -469,25 +469,26 @@ This function returns the Emacs keybinding associated with the sequence read."
     (nreverse terminal-input)))
 
 
-(defun kkp--query-terminal-async (query handlers)
+(defun kkp--query-terminal-async (query handlers terminal)
   "Send QUERY string to the terminal and watch for a response.
 HANDLERS is an alist with elements of the form (STRING . FUNCTION).
 We run the first FUNCTION whose STRING matches the input events.
 This function code is copied from `xterm--query`."
-  (let ((register
-         (lambda (handlers)
-           (dolist (handler handlers)
-             (define-key input-decode-map (car handler)
-                         (lambda (&optional _prompt)
-                           ;; Unregister the handler, since we don't expect
-                           ;; further answers.
-                           (dolist (handler handlers)
-                             (define-key input-decode-map (car handler) nil))
-                           (funcall (cdr handler))
-                           []))))))
+  (with-selected-frame terminal
+    (let ((register
+           (lambda (handlers)
+             (dolist (handler handlers)
+               (define-key input-decode-map (car handler)
+                           (lambda (&optional _prompt)
+                             ;; Unregister the handler, since we don't expect
+                             ;; further answers.
+                             (dolist (handler handlers)
+                               (define-key input-decode-map (car handler) nil))
+                             (funcall (cdr handler))
+                             []))))))
 
-    (funcall register handlers)
-    (send-string-to-terminal (kkp--csi-escape query))))
+      (funcall register handlers)
+      (send-string-to-terminal (kkp--csi-escape query) terminal))))
 
 
 (defun kkp--enabled-terminal-enhancements ()
