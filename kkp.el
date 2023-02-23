@@ -268,7 +268,7 @@ It is one of the symbols `shift', `alt', `control', `super',
                   (cl-loop for c from ?1 to ?9 collect c)
                   kkp--letter-terminators))
 
-(defvar kkp--terminals-with-active-kkp
+(defvar kkp--active-terminal-list
   '() "Internal variable to track terminals which have enabled KKP.")
 
 
@@ -493,19 +493,23 @@ This function code is copied from `xterm--query`."
 
 
 (defun kkp--calculate-flags-integer ()
-  "Calculate the flag integer to send to the terminal to activate the enhancemets."
+  "Calculate the flag integer to send to the terminal to activate the enhancements."
   (cl-reduce (lambda (sum elt) (+ sum
-                             (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
+                                  (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
 
-(defun kkp--pop-terminal-flag (terminal)
-  "Send query to TERMINAL (if nil, the current one) to pop previously pushed flags."
+(defun kkp--terminal-teardown (terminal)
+  "FIXME: Send query to TERMINAL (if nil, the current one) to pop previously pushed flags."
   (unless (or
            (display-graphic-p)
-           (not (member terminal kkp--terminals-with-active-kkp)))
-    (setq kkp--terminals-with-active-kkp (delete terminal kkp--terminals-with-active-kkp))
-    (kkp--query-terminal-sync "<u") terminal))
+           (not (member terminal kkp--active-terminal-list)))
+    (kkp--query-terminal-sync "<u" terminal)
+    (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
+    (with-selected-frame terminal
+      (dolist (prefix kkp--key-prefixes)
+        ;; TODO: use emacs-compat to delete key from keymap
+        (define-key input-decode-map (kkp--csi-escape (string prefix)) nil)))))
 
 
 (defun kkp--terminal-setup ()
@@ -514,32 +518,32 @@ This function code is copied from `xterm--query`."
         (b (read-event)))
     (when (and (<= ?0 a ?9) ;; TODO: flag can be two bytes
                (eql b ?u))
-      (if (member (selected-frame) kkp--terminals-with-active-kkp)
+      (if (member (selected-frame) kkp--active-terminal-list)
           (message "KKP already enabled in this terminal.")
         (let ((enhancement-flag (kkp--calculate-flags-integer)))
           (unless (eq enhancement-flag 0)
             (kkp--query-terminal-sync (format ">%su" enhancement-flag))
-            (push (selected-frame) kkp--terminals-with-active-kkp)
+            (push (selected-frame) kkp--active-terminal-list)
 
             ;; we register functions for each prefix to not interfere with e.g., M-[ I
             (dolist (prefix kkp--key-prefixes)
               (define-key input-decode-map (kkp--csi-escape (string prefix)) (lambda (_prompt) (kkp--process-keys prefix))))))))))
 
 
-(defun kkp--teardown-on-emacs-exit()
+(defun kkp--disable-in-active-terminals()
   "In all terminals with active KKP, pop the previously pushed enhancement flag."
-  (dolist (terminal kkp--terminals-with-active-kkp)
-    (kkp--pop-terminal-flag terminal)))
+  (dolist (terminal kkp--active-terminal-list)
+    (kkp--terminal-teardown terminal)))
 
 
 ;;;###autoload
-(defun kkp-enable-in-terminal ()
+(defun kkp-try-enable-in-terminal ()
   "Enable KKP support in Emacs running in the terminal."
   (interactive)
   (unless
       (or
        (display-graphic-p)
-       (member (selected-frame) kkp--terminals-with-active-kkp))
+       (member (selected-frame) kkp--active-terminal-list))
     (kkp--query-terminal-async "?u"
                                '(("\e[?" . kkp--terminal-setup)))))
 
@@ -548,30 +552,29 @@ This function code is copied from `xterm--query`."
 (defun kkp-disable-in-terminal ()
   "Disable in this terminal where command is executed, the activated enhancements."
   (interactive)
-  (dolist (prefix kkp--key-prefixes)
-    (define-key input-decode-map (kkp--csi-escape (string prefix)) nil))
-  (kkp--pop-terminal-flag (selected-frame)))
+  (kkp--terminal-teardown (selected-frame)))
 
 ;;;###autoload
-(defun kkp-enable ()
-  "Enable support for the Kitty Keyboard Protocol.
-This activates, if a terminal supports it, the protocol enhancements
-specified in `kkp-active-enhancements`."
-  (push #'kkp--pop-terminal-flag delete-frame-functions)
-  ;; call setup for future terminals to be opened
-  (add-hook 'tty-setup-hook #'kkp-enable-in-terminal)
-  ;; call teardown for terminals to be closed
-  (add-hook 'kill-emacs-hook #'kkp--teardown-on-emacs-exit)
-  ;; call setup for this terminal (if it is a terminal, else this does nothing)
-  (kkp-enable-in-terminal))
-
-
-;;;###autoload
-(defun kkp-disable ()
-  "Disable support for KKP in Emacs.
-This removes the hooks to automatically enable KKP in new terminals."
-  (remove-hook 'tty-setup-hook #'kkp-enable-in-terminal))
-
+(define-minor-mode kkp-global-mode "TODO."
+  :global t
+  :lighter nil
+  :group 'kkp
+  (cond
+   (kkp-global-mode
+    ;; call setup for future terminals to be opened
+    (add-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
+    ;; call teardown for terminals to be closed
+    (add-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
+    ;; we call this on each frame teardown, this has no effects if kkp is not enabled
+    (push #'kkp--terminal-teardown delete-frame-functions)
+    (dolist (frame (frame-list))
+      (with-selected-frame frame
+        (unless (display-graphic-p)
+          (kkp-try-enable-in-terminal)))))
+   (t
+    (remove-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
+    (kkp--disable-in-active-terminals)
+    (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals))))
 
 ;;;###autoload
 (defun kkp-check-terminal-supports-kkp ()
