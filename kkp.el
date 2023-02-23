@@ -455,10 +455,10 @@ This function returns the Emacs keybinding associated with the sequence read."
   (plist-get (cdr enhancement) :bit))
 
 
-(defun kkp--query-terminal-sync (query &optional terminal)
+(defun kkp--query-terminal-sync (query)
   "Send QUERY to TERMINAL (to current if nil) and return response (if any)."
   (discard-input)
-  (send-string-to-terminal (kkp--csi-escape query) terminal)
+  (send-string-to-terminal (kkp--csi-escape query))
   (let ((loop-cond t)
         (terminal-input nil))
     (while loop-cond
@@ -526,7 +526,7 @@ This function code is copied from `xterm--query`."
   (unless (or
            (display-graphic-p)
            (not (member terminal kkp--active-terminal-list)))
-    (kkp--query-terminal-sync "<u" terminal)
+    (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
     (with-selected-frame terminal
       (dolist (prefix kkp--key-prefixes)
@@ -543,8 +543,8 @@ This function code is copied from `xterm--query`."
           (message "KKP already enabled in this terminal.")
         (let ((enhancement-flag (kkp--calculate-flags-integer)))
           (unless (eq enhancement-flag 0)
-            (kkp--query-terminal-sync (format ">%su" enhancement-flag))
             (push (selected-frame) kkp--active-terminal-list)
+        (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
 
             ;; we register functions for each prefix to not interfere with e.g., M-[ I
             (dolist (prefix kkp--key-prefixes)
