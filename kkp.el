@@ -600,7 +600,7 @@ This function code is copied from `xterm--query`."
     (setq delete-frame-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
 
 ;;;###autoload
-(defun kkp-check-terminal-supports-kkp ()
+(defun kkp-print-terminal-support ()
   "Message if terminal supports kkp."
   (interactive)
   (message "KKP%s supported in this terminal"
@@ -609,7 +609,7 @@ This function code is copied from `xterm--query`."
 
 
 ;;;###autoload
-(defun kkp-check-progressive-enhancement-flags ()
+(defun kkp-print-enabled-progressive-enhancement-flags ()
   "Message, if terminal supports kkp, currently enabled enhancements."
   (interactive)
   (if (kkp--terminal-supports-kkp-p)
