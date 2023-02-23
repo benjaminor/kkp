@@ -50,67 +50,88 @@
 (require 'cl-lib)
 (require 'term/xterm)
 
-(defvar kkp-terminal-query-timeout 0.1
-  "Seconds to wait for an answer from the terminal. Nil means no timeout.")
+(defgroup kkp nil
+  "Kitty Keyboard Protocol (KKP) support."
+  :group 'convenience
+  :prefix "kkp-")
 
-(defvar kkp-active-enhancements
+(defcustom kkp-terminal-query-timeout 0.1
+  "Seconds to wait for an answer from the terminal. Nil means no timeout."
+  :type 'float)
+
+(defcustom kkp-active-enhancements
   '(disambiguate-escape-codes report-alternate-keys)
   "List of enhancements which should be enabled.
-Possible values are the keys in `kkp--progressive-enhancement-flags`.")
+Possible values are the keys in `kkp--progressive-enhancement-flags`."
+  :type '(repeat (choice (const disambiguate-escape-codes) (const report-alternate-keys))))
 
 (defvar kkp--progressive-enhancement-flags
   '((disambiguate-escape-codes . (:bit 1))
     (report-alternate-keys . (:bit 4))))
 
+(defconst kkp--modifiers
+  '(choice (const shift) (const alt) (const control)
+           (const super) (const hyper) (const meta)
+           (const caps-lock) (const num-lock)))
+
 ;; These mirror the behavior of `mac-command-modifier' and friends.
 ;; They specify which virtual key the physical key maps to.
-(defvar kkp-shift-modifier 'shift
+(defcustom kkp-shift-modifier 'shift
   "This variable describes the behavior of the shift key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-alt-modifier 'meta
+
+(defcustom kkp-alt-modifier 'meta
   "This variable describes the behavior of the alt key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-control-modifier 'control
+(defcustom kkp-control-modifier 'control
   "This variable describes the behavior of the ctrl key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-super-modifier 'super
+(defcustom kkp-super-modifier 'super
   "This variable describes the behavior of the super key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-hyper-modifier 'hyper
+(defcustom kkp-hyper-modifier 'hyper
   "This variable describes the behavior of the hyper key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-meta-modifier 'meta
+(defcustom kkp-meta-modifier 'meta
   "This variable describes the behavior of the meta key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-caps-lock-modifier 'caps-lock
+(defcustom kkp-caps-lock-modifier 'caps-lock
   "This variable describes the behavior of the caps key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
-(defvar kkp-num-lock-modifier 'num-lock
+(defcustom kkp-num-lock-modifier 'num-lock
   "This variable describes the behavior of the num key.
 
 It is one of the symbols `shift', `alt', `control', `super',
-`hyper', `meta', `caps-lock' or `num-lock'.")
+`hyper', `meta', `caps-lock' or `num-lock'."
+  :type kkp--modifiers)
 
 ;; kitty modifier encoding
 (put 'kkp-shift-modifier :encoding 1)
@@ -495,7 +516,7 @@ This function code is copied from `xterm--query`."
 (defun kkp--calculate-flags-integer ()
   "Calculate the flag integer to send to the terminal to activate the enhancements."
   (cl-reduce (lambda (sum elt) (+ sum
-                                  (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
+                             (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
 
