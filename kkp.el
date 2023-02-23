@@ -555,12 +555,13 @@ This function code is copied from `xterm--query`."
   (kkp--terminal-teardown (selected-frame)))
 
 ;;;###autoload
-(define-minor-mode kkp-global-mode "TODO."
+(define-minor-mode global-kkp-mode
+  "Toggle KKP support in all terminal frames."
   :global t
   :lighter nil
   :group 'kkp
   (cond
-   (kkp-global-mode
+   (global-kkp-mode
     ;; call setup for future terminals to be opened
     (add-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
     ;; call teardown for terminals to be closed
