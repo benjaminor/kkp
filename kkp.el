@@ -492,7 +492,7 @@ This function code is copied from `xterm--query`."
 
 
 (defun kkp--enabled-terminal-enhancements ()
-  "Query the terminal and return list of currently enabled enhancements."
+  "Query the current terminal and return list of currently enabled enhancements."
   (let ((reply (kkp--query-terminal-sync "?u")))
     (when (not reply)
       (error "Terminal did not reply correctly to query"))
@@ -507,7 +507,9 @@ This function code is copied from `xterm--query`."
 
 
 (defun kkp--terminal-supports-kkp-p ()
-  "Check if the terminal supports the Kitty Keyboard Protocol."
+  "Check if the current terminal supports the Kitty Keyboard Protocol.
+This does not work well if checking for another terminal which
+does not have focus, as input from this terminal cannot be reliably read."
   (let ((reply (kkp--query-terminal-sync "?u")))
     (and
      (member (length reply) '(5 6))
