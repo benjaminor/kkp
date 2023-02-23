@@ -7,7 +7,7 @@
 ;; Keywords: terminals
 ;; Version: 0.1
 ;; URL: https://github.com/benjaminor/kkp
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") (compat "29.1.3.4"))
 
 
 ;; This file is not part of GNU Emacs.
@@ -48,6 +48,7 @@
 
 ;;; Code:
 (require 'cl-lib)
+(require 'compat)
 (require 'term/xterm)
 
 (defgroup kkp nil
@@ -529,8 +530,7 @@ This function code is copied from `xterm--query`."
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
     (with-selected-frame terminal
       (dolist (prefix kkp--key-prefixes)
-        ;; TODO: use emacs-compat to delete key from keymap
-        (define-key input-decode-map (kkp--csi-escape (string prefix)) nil)))))
+        (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
 
 
 (defun kkp--terminal-setup ()
