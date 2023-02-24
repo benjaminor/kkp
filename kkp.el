@@ -538,8 +538,8 @@ does not have focus, as input from this terminal cannot be reliably read."
 
 (defun kkp--terminal-teardown (terminal)
   "Run procedures to disable KKP in TERMINAL."
-  (unless
-      (not (member terminal kkp--active-terminal-list))
+  (when
+      (member terminal kkp--active-terminal-list)
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
     (with-selected-frame (car (frames-on-display-list terminal))
