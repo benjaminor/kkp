@@ -28,8 +28,13 @@ Install by using your favorite package manager (e.g., quelpa or straight) or clo
     :demand
     :config
     ;; (setq kkp-alt-modifier 'alt) ;; use this if you want to map the Alt keyboard modifier to Alt in Emacs (and not to Meta)
-    (kkp-enable))
+    (global-kkp-mode +1))
 #+end_src
+
+kkp.el works out of the box by enabling =global-kkp-mode= and is customizable via the =kkp-*= customization variables.
+
+If you want to know if your terminal supports kkp, use =kkp-print-terminal-support=.
+If you want to know which enhancements are activated, use =kkp-print-enabled-progressive-enhancement-flags=.
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
 By default, it is set to ='(disambiguate-escape-codes report-alternate-keys)=.
@@ -37,7 +42,7 @@ By default, it is set to ='(disambiguate-escape-codes report-alternate-keys)=.
 Note that when you activate only =disambiguate-escape-codes=,
 the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
 This means "M-S-." (Meta-Shift-.) is not translated to "M-:" (on a German keyboard) and Emacs will probably not find the proper keybinding.
-"Report alternate keys" fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
+='report-alternate-keys= fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
 
 #+begin_src emacs-lisp
 (define-key key-translation-map (kbd "M-S-.") (kbd "M-:"))
