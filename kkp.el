@@ -63,7 +63,7 @@
 (defcustom kkp-active-enhancements
   '(disambiguate-escape-codes report-alternate-keys)
   "List of enhancements which should be enabled.
-Possible values are the keys in `kkp--progressive-enhancement-flags`."
+Possible values are the keys in `kkp--progressive-enhancement-flags'."
   :type '(repeat (choice (const disambiguate-escape-codes) (const report-alternate-keys))))
 
 (defvar kkp--progressive-enhancement-flags
@@ -390,26 +390,27 @@ key codepoint."
 FIRST-BYTE is the byte read before this function is called.
 This function returns the Emacs keybinding associated with the sequence read."
 
-  ;; read input from terminal
-  ;; generate and return keybinding string
-  (let ((terminal-input `(,first-byte)))
+  (let ((terminal-input (list first-byte)))
 
     ;; read in events from stdin until we have found a terminator
     (while (not (member (cl-first terminal-input) kkp--acceptable-terminators))
       (let ((evt (read-event)))
         (push evt terminal-input)))
 
-    ;; reverse input has we pushed to events to the front of the list
+    ;; reverse input has we pushed events to the front of the list
     (setq terminal-input (nreverse terminal-input))
 
     ;; three different terminator types: u, ~, and letters
     ;; u und tilde have same structure
-    ;; letter terminated have a different structure
+    ;; letter terminated sequences have a different structure
     (let
         ((terminator (car (last terminal-input))))
       (cond
-       ((equal terminal-input "\e[200~") ;; this protocol covers all keys with a prefix in kkp--key-prefixes except for this one
+
+       ;; this protocol covers all keys with a prefix in `kkp--key-prefixes' except for this external one
+       ((equal terminal-input "\e[200~")
         #'xterm-translate-bracketed-paste)
+
        ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
        ((member terminator '(?u ?~))
         (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
@@ -418,7 +419,7 @@ This function returns the Emacs keybinding associated with the sequence read."
                ;; (text-as-codepoints (cl-third splitted-terminal-input))
                (primary-key-code (cl-first splitted-keycodes))
                (shifted-key-code (cl-second splitted-keycodes))
-               (modifiers (cl-first splitted-modifiers-events)) ;; get modifiers
+               (modifiers (cl-first splitted-modifiers-events))
                (key-code nil)
                (modifier-num
                 (if modifiers
@@ -426,9 +427,8 @@ This function returns the Emacs keybinding associated with the sequence read."
                      (kkp--ascii-chars-to-number modifiers))
                   0)))
 
-
-          ;; check if keycode has shifted key ->
-          ;; set keychar to shifted key & remove Shift from modifiers
+          ;; check if keycode has shifted key:
+          ;; set key-code to shifted key-code & remove shift from modifiers
           (if
               (and
                shifted-key-code
@@ -438,6 +438,7 @@ This function returns the Emacs keybinding associated with the sequence read."
                 (setq modifier-num (logand modifier-num (lognot 1))))
             (setq key-code primary-key-code))
 
+          ;; create keybinding by concatenating the modifier string with the key-name
           (let
               ((modifier-str (kkp--create-modifiers-string modifier-num))
                (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code))))
@@ -482,7 +483,7 @@ This function returns the Emacs keybinding associated with the sequence read."
   "Send QUERY string to TERMINAL and register HANDLERS for a response.
 HANDLERS is an alist with elements of the form (STRING . FUNCTION).
 We run the first FUNCTION whose STRING matches the input events.
-This function code is copied from `xterm--query`."
+This function code is copied from `xterm--query'."
   (with-selected-frame (car (frames-on-display-list terminal))
     (let ((register
            (lambda (handlers)
@@ -528,8 +529,10 @@ does not have focus, as input from this terminal cannot be reliably read."
 
 (defun kkp--calculate-flags-integer ()
   "Calculate the flag integer to send to the terminal to activate the enhancements."
-  (cl-reduce (lambda (sum elt) (+ sum
-                             (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
+  (cl-reduce (lambda (sum elt)
+               (+
+                sum
+                (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
 
@@ -638,7 +641,7 @@ does not have focus, as input from this terminal cannot be reliably read."
 
 ;;;###autoload
 (defun kkp-print-terminal-support ()
-  "Message if terminal supports kkp."
+  "Message if terminal supports KKP."
   (interactive)
   (message "KKP%s supported in this terminal"
            (if (kkp--terminal-supports-kkp-p)
@@ -647,7 +650,7 @@ does not have focus, as input from this terminal cannot be reliably read."
 
 ;;;###autoload
 (defun kkp-print-enabled-progressive-enhancement-flags ()
-  "Message, if terminal supports kkp, currently enabled enhancements."
+  "Message, if terminal supports KKP, currently enabled enhancements."
   (interactive)
   (if (kkp--terminal-supports-kkp-p)
       (message "%s" (kkp--enabled-terminal-enhancements))
