@@ -291,8 +291,13 @@ It is one of the symbols `shift', `alt', `control', `super',
                   kkp--letter-terminators))
 
 (defvar kkp--active-terminal-list
-  '() "Internal variable to track terminals which have enabled KKP.")
+  nil "Internal variable to track terminals which have enabled KKP.")
 
+(defvar kkp--setup-initial-terminal-list
+  nil "Internal variable to track initial terminals when enabling `global-kkp-mode´.")
+
+(defvar kkp--setup-visited-terminal-list
+  nil "Internal variable to track visited terminals after enabling `global-kkp-mode´.")
 
 
 (defun kkp--mod-bits (modifier)
@@ -318,6 +323,10 @@ MODIFIER is one of the symbols `shift', `alt', `control',
 (defun kkp--csi-escape (&rest args)
   "Prepend the CSI bytes before the ARGS."
   (concat "\e[" (apply #'concat args)))
+
+(defun kkp--selected-terminal ()
+  "Get the terminal that is now selected."
+  (frame-terminal (selected-frame)))
 
 (defun kkp--cl-split (separator seq)
   "Split SEQ along SEPARATOR and return all subsequences."
@@ -474,7 +483,7 @@ This function returns the Emacs keybinding associated with the sequence read."
 HANDLERS is an alist with elements of the form (STRING . FUNCTION).
 We run the first FUNCTION whose STRING matches the input events.
 This function code is copied from `xterm--query`."
-  (with-selected-frame terminal
+  (with-selected-frame (car (frames-on-display-list terminal))
     (let ((register
            (lambda (handlers)
              (dolist (handler handlers)
@@ -525,40 +534,37 @@ does not have focus, as input from this terminal cannot be reliably read."
 
 
 (defun kkp--terminal-teardown (terminal)
-  "Run procedures to disable kkp in TERMINAL (if nil, the current one)."
+  "Run procedures to disable KKP in TERMINAL."
   (unless
       (not (member terminal kkp--active-terminal-list))
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
-    (with-selected-frame terminal
+    (with-selected-frame (car (frames-on-display-list terminal))
       (dolist (prefix kkp--key-prefixes)
         (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
 
 
-(defun kkp--terminal-setup-async ()
-  "Run setup to enable KKP support.
+(defun kkp--terminal-setup ()
+  "Run setup to enable KKP support in current terminal.
 This does not work well if checking for another terminal which
 does not have focus, as input from this terminal cannot be reliably read."
   (let ((inhibit-redisplay t))
     (let ((a (read-event))
-          (b (read-event)))
+          (b (read-event))
+          (terminal (kkp--selected-terminal)))
       (when (and (<= ?0 a ?9) ;; TODO: flag can be two bytes
                  (eql b ?u))
-        (kkp--terminal-setup (selected-frame))))))
+        (unless (member terminal kkp--active-terminal-list)
+          (let ((enhancement-flag (kkp--calculate-flags-integer)))
+            (unless (eq enhancement-flag 0)
+              (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
+              (push terminal kkp--active-terminal-list)
 
-(defun kkp--terminal-setup (terminal)
-  "Run setup to enable KKP support in TERMINAL."
-  (unless (member terminal kkp--active-terminal-list)
-    (let ((enhancement-flag (kkp--calculate-flags-integer)))
-      (unless (eq enhancement-flag 0)
-        (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
-        (push terminal kkp--active-terminal-list)
-
-        ;; we register functions for each prefix to not interfere with e.g., M-[ I
-        (with-selected-frame terminal
-          (dolist (prefix kkp--key-prefixes)
-            (define-key input-decode-map (kkp--csi-escape (string prefix))
-                        (lambda (_prompt) (kkp--process-keys prefix)))))))))
+              ;; we register functions for each prefix to not interfere with e.g., M-[ I
+              (with-selected-frame (car (frames-on-display-list terminal))
+                (dolist (prefix kkp--key-prefixes)
+                  (define-key input-decode-map (kkp--csi-escape (string prefix))
+                              (lambda (_prompt) (kkp--process-keys prefix))))))))))))
 
 
 
@@ -567,7 +573,7 @@ does not have focus, as input from this terminal cannot be reliably read."
   (dolist (terminal kkp--active-terminal-list)
     (kkp--terminal-teardown terminal)))
 
-(cl-defun kkp-try-enable-in-terminal (&optional (terminal (selected-frame)))
+(cl-defun kkp-enable-in-terminal (&optional (terminal (kkp--selected-terminal)))
   "Enable KKP support in Emacs running in the TERMINAL."
   (interactive)
   (when
@@ -576,24 +582,28 @@ does not have focus, as input from this terminal cannot be reliably read."
     (unless
         (member terminal kkp--active-terminal-list)
       (kkp--query-terminal-async "?u"
-                                 '(("\e[?" . kkp--terminal-setup-async)) terminal))))
+                                 '(("\e[?" . kkp--terminal-setup)) terminal))))
 
 ;;;###autoload
 (defun kkp-disable-in-terminal ()
   "Disable in this terminal where command is executed, the activated enhancements."
   (interactive)
-  (kkp--terminal-teardown (selected-frame)))
+  (kkp--terminal-teardown (kkp--selected-terminal)))
 
-(defvar kkp--setup-visited-terminal-list
-  nil)
 
 (defun kkp-focus-change (&rest _)
   "Enable KKP when focus on terminal which has not yet enabled it once."
-  (let ((terminal (selected-frame)))
+  (let* ((frame (selected-frame))
+         (terminal (kkp--selected-terminal)))
     (when
         (and (not (member terminal kkp--setup-visited-terminal-list))
-             (frame-focus-state terminal))
-      (kkp-try-enable-in-terminal terminal))))
+             (frame-focus-state frame))
+      (kkp-enable-in-terminal terminal))
+    (when
+        (cl-subsetp
+         kkp--setup-initial-terminal-list kkp--setup-visited-terminal-list)
+      (remove-function after-focus-change-function #'kkp-focus-change))))
+
 
 ;;;###autoload
 (define-minor-mode global-kkp-mode
@@ -604,24 +614,27 @@ does not have focus, as input from this terminal cannot be reliably read."
   (cond
    (global-kkp-mode
     ;; call setup for future terminals to be opened
-    (add-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
+    (add-hook 'tty-setup-hook #'kkp-enable-in-terminal)
     ;; call teardown for terminals to be closed
     (add-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
     ;; we call this on each frame teardown, this has no effects if kkp is not enabled
-    (add-to-list 'delete-frame-functions #'kkp--terminal-teardown)
+    (add-to-list 'delete-terminal-functions #'kkp--terminal-teardown)
 
     ;; this is by far the most reliable method to enable kkp in all associated terminals
     ;; trying to switch to each terminal with `with-selected-frame' does not work very well
     ;; as input from `read-event' cannot be reliably read from the corresponding terminal
     (add-function :after after-focus-change-function #'kkp-focus-change)
+    (setq kkp--setup-initial-terminal-list
+          (cl-remove-if-not (lambda (elt) (eq t (terminal-live-p elt)))
+                            (terminal-list)))
     (setq kkp--setup-visited-terminal-list nil)
-    (kkp-try-enable-in-terminal))
+    (kkp-enable-in-terminal))
    (t
     (kkp--disable-in-active-terminals)
-    (remove-hook 'tty-setup-hook #'kkp-try-enable-in-terminal)
+    (remove-hook 'tty-setup-hook #'kkp-enable-in-terminal)
     (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
     (remove-function after-focus-change-function #'kkp-focus-change)
-    (setq delete-frame-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
+    (setq delete-terminal-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
 
 ;;;###autoload
 (defun kkp-print-terminal-support ()
