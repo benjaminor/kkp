@@ -1,11 +1,13 @@
 #+TITLE: kkp.el -- Support for the Kitty Keyboard protocol in Emacs
 #+OPTIONS: ^:{}
 
+[[https://melpa.org/#/kkp][file:https://melpa.org/packages/kkp-badge.svg]]
+
 * Overview
 
 This package provides support for the [[https://sw.kovidgoyal.net/kitty/keyboard-protocol][Kitty Keyboard Protocol]] (KKP).
 
-The protocol defines an alternative way to handle keyboard input for programs running in the terminal.
+KKP defines an alternative way to handle keyboard input for programs running in the terminal.
 This allows, if the terminal (and intermediaries such as terminal multiplexers) support the protocol as well,
 the transmission of more detailed information about a key event from the terminal to Emacs, e.g., it transmits "<tab>" and "C-i" differently.
 
@@ -18,11 +20,11 @@ This package supports the "Disambiguate escape codes" and "Report alternate keys
 
 ** Usage
 
-Install by using your favorite package manager (e.g., quelpa or straight) or cloning the repository locally and putting it in your load-path:
+Install via melpa or by using your favorite package manager (e.g., quelpa or straight) or cloning the repository locally and putting it in your load-path:
 
 #+begin_src emacs-lisp
   (use-package kkp
-    :quelpa (kkp :repo "benjaminor/kkp" :fetcher github)
+    ;; :quelpa (kkp :repo "benjaminor/kkp" :fetcher github)
     ;; :straight (kkp :type git :repo "benjaminor/kkp" :host github)
     ;; :load-path "download-path/kkp"
     :demand
