@@ -1,4 +1,5 @@
 #+TITLE: kkp.el -- Support for the Kitty Keyboard protocol in Emacs
+#+AUTHOR: Benjamin Orthen
 #+OPTIONS: ^:{}
 
 [[https://melpa.org/#/kkp][file:https://melpa.org/packages/kkp-badge.svg]]
@@ -16,22 +17,37 @@ KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_Lock>"
 It can also dynamically detect if a terminal supports the protocol, whereas Emacs has to deduce "modifyOtherKeys" support from the TERM variable.
 
 ** Status: Beta
-This package supports the "Disambiguate escape codes" and "Report alternate keys" enhancements. It has not been tested extensively.
+This package supports the "Disambiguate escape codes" and "Report
+alternate keys" enhancements. I use it on a regular basis but it has
+not been tested extensively.
 
-** Usage
+** Installation
+*** Melpa
+You can install this package from [[https://melpa.org/#/kkp][Melpa]], by first ensuring that you have the melpa source in your package-archives.
+#+begin_src emacs-lisp
+  (require 'package)
+  (add-to-list 'package-archives
+               '("melpa" . "http://melpa.org/packages/") t)
+  (package-initialize)
+  (package-refresh-contents)
+#+end_src
 
-Install via melpa or by using your favorite package manager (e.g., quelpa or straight) or cloning the repository locally and putting it in your load-path:
+Once that is done, this package can be installed.
+
+#+begin_src shell
+  package-install kkp
+#+end_src
+*** use-package
 
 #+begin_src emacs-lisp
-  (use-package kkp
-    ;; :quelpa (kkp :repo "benjaminor/kkp" :fetcher github)
-    ;; :straight (kkp :type git :repo "benjaminor/kkp" :host github)
-    ;; :load-path "download-path/kkp"
-    :demand
-    :config
-    ;; (setq kkp-alt-modifier 'alt) ;; use this if you want to map the Alt keyboard modifier to Alt in Emacs (and not to Meta)
-    (global-kkp-mode +1))
+    (use-package kkp
+      :ensure t
+      :config
+      ;; (setq kkp-alt-modifier 'alt) ;; use this if you want to map the Alt keyboard modifier to Alt in Emacs (and not to Meta)
+      (global-kkp-mode +1))
 #+end_src
+
+** Usage
 
 kkp.el works out of the box by enabling =global-kkp-mode= and is customizable via the =kkp-*= customization variables.
 
