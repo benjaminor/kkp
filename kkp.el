@@ -635,7 +635,12 @@ does not have focus, as input from this terminal cannot be reliably read."
           (cl-remove-if-not (lambda (elt) (eq t (terminal-live-p elt)))
                             (terminal-list)))
     (setq kkp--setup-visited-terminal-list nil)
-    (kkp-enable-in-terminal))
+
+    ;; At startup, this global mode might be called before the 'tty-setup-hook'.
+    ;; To avoid running 'kkp-enable-in-terminal' before, we only run it if
+    ;; the 'tty-run-terminal-initialization' already ran.
+    (when (terminal-parameter (kkp--selected-terminal) 'terminal-initted)
+      (kkp-enable-in-terminal)))
    (t
     (kkp--disable-in-active-terminals)
     (remove-hook 'tty-setup-hook #'kkp-enable-in-terminal)
