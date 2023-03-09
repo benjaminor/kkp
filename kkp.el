@@ -551,28 +551,35 @@ does not have focus, as input from this terminal cannot be reliably read."
         (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
 
 
+(defun kkp--terminal-read-and-ignore (terminator)
+  "Read from terminal until TERMINATOR, ignore input."
+  (let ((inhibit-redisplay t)
+        chr)
+    (while (and (setq chr (read-event)) (not (equal chr terminator)))
+      (ignore))))
+
 (defun kkp--terminal-setup ()
   "Run setup to enable KKP support in current terminal.
 This does not work well if checking for another terminal which
 does not have focus, as input from this terminal cannot be reliably read."
-  (let ((inhibit-redisplay t))
-    (let ((a (read-event))
-          (b (read-event))
-          (terminal (kkp--selected-terminal)))
-      (when (and (<= ?0 a ?9) ;; TODO: flag can be two bytes
-                 (eql b ?u))
-        (unless (member terminal kkp--active-terminal-list)
-          (let ((enhancement-flag (kkp--calculate-flags-integer)))
-            (unless (eq enhancement-flag 0)
-              (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
-              (push terminal kkp--active-terminal-list)
+  ;; we do not really care about the response, but if we would, we could check
+  ;; the response matches a positive integer:
+  ;; (string-match-p "^\\(?:0\\|[1-9][0-9]*\\)$" response-from-terminal)
+  (kkp--terminal-read-and-ignore ?u)
+  (let ((terminal (kkp--selected-terminal)))
+    (unless (member terminal kkp--active-terminal-list)
+      (let ((enhancement-flag (kkp--calculate-flags-integer)))
+        (unless (eq enhancement-flag 0)
 
-              ;; we register functions for each prefix to not interfere with e.g., M-[ I
-              (with-selected-frame (car (frames-on-display-list terminal))
-                (dolist (prefix kkp--key-prefixes)
-                  (define-key input-decode-map (kkp--csi-escape (string prefix))
-                              (lambda (_prompt) (kkp--process-keys prefix))))))))))))
+          (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
 
+          (push terminal kkp--active-terminal-list)
+
+          ;; we register functions for each prefix to not interfere with e.g., M-[ I
+          (with-selected-frame (car (frames-on-display-list terminal))
+            (dolist (prefix kkp--key-prefixes)
+              (define-key input-decode-map (kkp--csi-escape (string prefix))
+                          (lambda (_prompt) (kkp--process-keys prefix))))))))))
 
 
 (defun kkp--disable-in-active-terminals()
