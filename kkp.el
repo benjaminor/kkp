@@ -564,6 +564,7 @@ does not have focus, as input from this terminal cannot be reliably read."
   ;; (string-match-p "^\\(?:0\\|[1-9][0-9]*\\)$" response-from-terminal)
   (kkp--terminal-read-and-ignore ?u)
   (let ((terminal (kkp--selected-terminal)))
+    (set-terminal-parameter terminal 'kkp--setup-started nil)
     (unless (member terminal kkp--active-terminal-list)
       (let ((enhancement-flag (kkp--calculate-flags-integer)))
         (unless (eq enhancement-flag 0)
@@ -588,10 +589,17 @@ does not have focus, as input from this terminal cannot be reliably read."
   "Enable KKP support in Emacs running in the TERMINAL."
   (interactive)
   (when
-      (eq t (terminal-live-p terminal))
+      (terminal-live-p terminal)
     (push terminal kkp--setup-visited-terminal-list)
     (unless
-        (member terminal kkp--active-terminal-list)
+        (or
+         (terminal-parameter terminal 'kkp--setup-started)
+         (member terminal kkp--active-terminal-list))
+
+      ;; NOTE: to avoid race conditions, we set the custom terminal
+      ;; parameter here to not send the query multiple times to the
+      ;; terminal
+      (set-terminal-parameter terminal 'kkp--setup-started t)
       (kkp--query-terminal-async "?u"
                                  '(("\e[?" . kkp--terminal-setup)) terminal))))
 
