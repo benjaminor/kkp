@@ -297,9 +297,6 @@ It is one of the symbols `shift', `alt', `control', `super',
 (defvar kkp--active-terminal-list
   nil "Internal variable to track terminals which have enabled KKP.")
 
-(defvar kkp--setup-initial-terminal-list
-  nil "Internal variable to track initial terminals when enabling `global-kkp-mode´.")
-
 (defvar kkp--setup-visited-terminal-list
   nil "Internal variable to track visited terminals after enabling `global-kkp-mode´.")
 
@@ -612,11 +609,7 @@ does not have focus, as input from this terminal cannot be reliably read."
     (when
         (and (not (member terminal kkp--setup-visited-terminal-list))
              (frame-focus-state frame))
-      (kkp-enable-in-terminal terminal))
-    (when
-        (cl-subsetp
-         kkp--setup-initial-terminal-list kkp--setup-visited-terminal-list)
-      (remove-function after-focus-change-function #'kkp-focus-change))))
+      (kkp-enable-in-terminal terminal))))
 
 
 ;;;###autoload
@@ -638,9 +631,6 @@ does not have focus, as input from this terminal cannot be reliably read."
     ;; trying to switch to each terminal with `with-selected-frame' does not work very well
     ;; as input from `read-event' cannot be reliably read from the corresponding terminal
     (add-function :after after-focus-change-function #'kkp-focus-change)
-    (setq kkp--setup-initial-terminal-list
-          (cl-remove-if-not (lambda (elt) (eq t (terminal-live-p elt)))
-                            (terminal-list)))
     (setq kkp--setup-visited-terminal-list nil)
 
     ;; At startup, this global mode might be called before the 'tty-setup-hook'.
