@@ -550,36 +550,38 @@ does not have focus, as input from this terminal cannot be reliably read."
         (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
 
 
-(defun kkp--terminal-read-and-ignore (terminator)
-  "Read from terminal until TERMINATOR, ignore input."
-  (let ((inhibit-redisplay t)
-        chr)
-    (while (and (setq chr (read-event)) (not (equal chr terminator)))
-      (ignore))))
-
 (defun kkp--terminal-setup ()
   "Run setup to enable KKP support in current terminal.
 This does not work well if checking for another terminal which
 does not have focus, as input from this terminal cannot be reliably read."
-  ;; we do not really care about the response, but if we would, we could check
-  ;; the response matches a positive integer:
-  ;; (string-match-p "^\\(?:0\\|[1-9][0-9]*\\)$" response-from-terminal)
-  (kkp--terminal-read-and-ignore ?u)
-  (let ((terminal (kkp--selected-terminal)))
-    (set-terminal-parameter terminal 'kkp--setup-started nil)
-    (unless (member terminal kkp--active-terminal-list)
-      (let ((enhancement-flag (kkp--calculate-flags-integer)))
-        (unless (eq enhancement-flag 0)
 
-          (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
+  (let ((terminal-input "")
+        chr)
+    (while (and (setq chr (read-event nil nil kkp-terminal-query-timeout)) (not (equal chr ?c)))
+      (setq terminal-input (concat terminal-input (string chr))))
 
-          (push terminal kkp--active-terminal-list)
+    ;; NOTE: condition: CSI?<flags>u CSI?...c must be in response
+    (when (string-match-p (rx line-start
+                              (+ digit) ;; <flags>
+                              "u\e[?"
+                              (+ anychar)
+                              eol) terminal-input)
 
-          ;; we register functions for each prefix to not interfere with e.g., M-[ I
-          (with-selected-frame (car (frames-on-display-list terminal))
-            (dolist (prefix kkp--key-prefixes)
-              (define-key input-decode-map (kkp--csi-escape (string prefix))
-                          (lambda (_prompt) (kkp--process-keys prefix))))))))))
+      (let ((terminal (kkp--selected-terminal)))
+        (set-terminal-parameter terminal 'kkp--setup-started nil)
+        (unless (member terminal kkp--active-terminal-list)
+          (let ((enhancement-flag (kkp--calculate-flags-integer)))
+            (unless (eq enhancement-flag 0)
+
+              (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
+
+              (push terminal kkp--active-terminal-list)
+
+              ;; we register functions for each prefix to not interfere with e.g., M-[ I
+              (with-selected-frame (car (frames-on-display-list terminal))
+                (dolist (prefix kkp--key-prefixes)
+                  (define-key input-decode-map (kkp--csi-escape (string prefix))
+                              (lambda (_prompt) (kkp--process-keys prefix))))))))))))
 
 
 (defun kkp--disable-in-active-terminals()
@@ -604,7 +606,7 @@ does not have focus, as input from this terminal cannot be reliably read."
       ;; parameter here to not send the query multiple times to the
       ;; terminal
       (set-terminal-parameter terminal 'kkp--setup-started t)
-      (kkp--query-terminal-async "?u"
+      (kkp--query-terminal-async "?u\e[c"
                                  '(("\e[?" . kkp--terminal-setup)) terminal))))
 
 ;;;###autoload
