@@ -540,7 +540,9 @@ does not have focus, as input from this terminal cannot be reliably read."
 (defun kkp--terminal-teardown (terminal)
   "Run procedures to disable KKP in TERMINAL."
   (when
-      (member terminal kkp--active-terminal-list)
+      (and
+       (terminal-live-p terminal)
+       (member terminal kkp--active-terminal-list))
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
     (with-selected-frame (car (frames-on-display-list terminal))
@@ -589,7 +591,9 @@ does not have focus, as input from this terminal cannot be reliably read."
   "Enable KKP support in Emacs running in the TERMINAL."
   (interactive)
   (when
-      (terminal-live-p terminal)
+      (and
+       (terminal-live-p terminal)
+       (not (display-graphic-p terminal)))
     (push terminal kkp--setup-visited-terminal-list)
     (unless
         (or
