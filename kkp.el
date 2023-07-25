@@ -267,9 +267,6 @@ It is one of the symbols `shift', `alt', `control', `super',
     (24 . "<f12>")
     (57427 . "<kp-begin>")))
 
-(defvar kkp--keycode-mapping
-  (cl-concatenate 'list kkp--non-printable-keys-with-u-terminator kkp--non-printable-keys-with-tilde-terminator))
-
 (defvar kkp--non-printable-keys-with-letter-terminator
   '((?A . "<up>")
     (?B . "<down>")
@@ -376,11 +373,11 @@ MODIFIER is one of the symbols `shift', `alt', `control',
     key-str))
 
 
-(defun kkp--get-keycode-representation (keycode)
+(defun kkp--get-keycode-representation (keycode mapping)
   "Try to lookup the Emacs key representation for KEYCODE.
 This is either in the mapping or it is the string representation of the
 key codepoint."
-  (let ((rep (alist-get keycode kkp--keycode-mapping)))
+  (let ((rep (alist-get keycode mapping)))
     (if rep
         rep
       (string keycode))))
@@ -442,7 +439,10 @@ This function returns the Emacs keybinding associated with the sequence read."
           ;; create keybinding by concatenating the modifier string with the key-name
           (let
               ((modifier-str (kkp--create-modifiers-string modifier-num))
-               (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code))))
+               (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code)
+                                                          (if (equal terminator ?u)
+                                                              kkp--non-printable-keys-with-u-terminator
+                                                            kkp--non-printable-keys-with-tilde-terminator))))
             (kbd (concat modifier-str key-name)))))
 
        ;; terminal input has this form [1;modifier[:event-type]]{letter}
