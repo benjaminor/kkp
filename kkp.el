@@ -549,6 +549,9 @@ does not have focus, as input from this terminal cannot be reliably read."
        (member terminal kkp--active-terminal-list))
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
+
+    (normal-erase-is-backspace-mode (terminal-parameter terminal 'kkp--previous-normal-erase-is-backspace-val))
+
     (with-selected-frame (car (frames-on-display-list terminal))
       (dolist (prefix kkp--key-prefixes)
         (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
@@ -580,6 +583,8 @@ does not have focus, as input from this terminal cannot be reliably read."
               (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
 
               (push terminal kkp--active-terminal-list)
+              (set-terminal-parameter terminal 'kkp--previous-normal-erase-is-backspace-val (terminal-parameter terminal 'normal-erase-is-backspace))
+              (normal-erase-is-backspace-mode 1)
 
               ;; we register functions for each prefix to not interfere with e.g., M-[ I
               (with-selected-frame (car (frames-on-display-list terminal))
@@ -594,7 +599,7 @@ does not have focus, as input from this terminal cannot be reliably read."
     (kkp--terminal-teardown terminal)))
 
 (cl-defun kkp-enable-in-terminal (&optional (terminal (kkp--selected-terminal)))
-  "Enable KKP support in Emacs running in the TERMINAL."
+  "Try to enable KKP support in Emacs running in the TERMINAL."
   (interactive)
   (when
       (and
@@ -629,6 +634,12 @@ does not have focus, as input from this terminal cannot be reliably read."
              (frame-focus-state frame))
       (kkp-enable-in-terminal terminal))))
 
+(defun kkp--display-symbol-keys-p (orig-fun &rest args)
+  "Advice function for display-symbols-key-p ORIG-FUN with ARGS.
+This ensures display-symbols-key-p returns non nil in a terminal with KKP enabled."
+  (or
+   (member (kkp--selected-terminal) kkp--active-terminal-list)
+   (apply orig-fun args)))
 
 ;;;###autoload
 (define-minor-mode global-kkp-mode
@@ -638,6 +649,8 @@ does not have focus, as input from this terminal cannot be reliably read."
   :group 'kkp
   (cond
    (global-kkp-mode
+    ;; if terminal has KKP enabled, it supports symbol names as keys
+    (advice-add 'display-symbol-keys-p :around #'kkp--display-symbol-keys-p)
     ;; call setup for future terminals to be opened
     (add-hook 'tty-setup-hook #'kkp-enable-in-terminal)
     ;; call teardown for terminals to be closed
@@ -657,6 +670,7 @@ does not have focus, as input from this terminal cannot be reliably read."
     (when (terminal-parameter (kkp--selected-terminal) 'terminal-initted)
       (kkp-enable-in-terminal)))
    (t
+    (advice-remove 'display-symbol-keys-p #'kkp--display-symbol-keys-p)
     (kkp--disable-in-active-terminals)
     (remove-hook 'tty-setup-hook #'kkp-enable-in-terminal)
     (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
