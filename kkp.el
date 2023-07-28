@@ -374,13 +374,77 @@ MODIFIER is one of the symbols `shift', `alt', `control',
 
 
 (defun kkp--get-keycode-representation (keycode mapping)
-  "Try to lookup the Emacs key representation for KEYCODE.
+  "Try to lookup the Emacs key representation for KEYCODE in MAPPING.
 This is either in the mapping or it is the string representation of the
 key codepoint."
   (let ((rep (alist-get keycode mapping)))
     (if rep
         rep
       (string keycode))))
+
+(defun kkp--translate-terminal-input (terminal-input)
+  "Translate TERMINAL-INPUT according to KKP to the Emacs keybinding."
+  ;; three different terminator types: u, ~, and letters
+  ;; u und tilde have same structure
+  ;; letter terminated sequences have a different structure
+  (let
+      ((terminator (car (last terminal-input))))
+    (cond
+
+     ;; this protocol covers all keys with a prefix in `kkp--key-prefixes' except for this external one
+     ((equal terminal-input "200~")
+      #'xterm-translate-bracketed-paste)
+
+     ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
+     ((member terminator '(?u ?~))
+      (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
+             (splitted-keycodes (kkp--cl-split ?: (cl-first splitted-terminal-input))) ;; get keycodes from sequence
+             (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
+             ;; (text-as-codepoints (cl-third splitted-terminal-input))
+             (primary-key-code (cl-first splitted-keycodes))
+             (shifted-key-code (cl-second splitted-keycodes))
+             (modifiers (cl-first splitted-modifiers-events))
+             (key-code nil)
+             (modifier-num
+              (if modifiers
+                  (1-
+                   (kkp--ascii-chars-to-number modifiers))
+                0)))
+
+        ;; check if keycode has shifted key:
+        ;; set key-code to shifted key-code & remove shift from modifiers
+        (if
+            (and
+             shifted-key-code
+             (not (member (kkp--ascii-chars-to-number primary-key-code) kkp--printable-ascii-letters)))
+            (progn
+              (setq key-code shifted-key-code)
+              (setq modifier-num (logand modifier-num (lognot 1))))
+          (setq key-code primary-key-code))
+
+        ;; create keybinding by concatenating the modifier string with the key-name
+        (let
+            ((modifier-str (kkp--create-modifiers-string modifier-num))
+             (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code)
+                                                        (if (equal terminator ?u)
+                                                            kkp--non-printable-keys-with-u-terminator
+                                                          kkp--non-printable-keys-with-tilde-terminator))))
+          (kbd (concat modifier-str key-name)))))
+
+     ;; terminal input has this form [1;modifier[:event-type]]{letter}
+     ((member terminator kkp--letter-terminators)
+      (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
+             (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
+             (modifiers (cl-first splitted-modifiers-events)) ;; get modifiers
+             (modifier-num
+              (if modifiers
+                  (1-
+                   (kkp--ascii-chars-to-number modifiers))
+                0)))
+        (let
+            ((modifier-str (kkp--create-modifiers-string modifier-num))
+             (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
+          (kbd (concat modifier-str key-name))))))))
 
 
 (defun kkp--process-keys (first-byte)
@@ -397,68 +461,8 @@ This function returns the Emacs keybinding associated with the sequence read."
 
     ;; reverse input has we pushed events to the front of the list
     (setq terminal-input (nreverse terminal-input))
+    (kkp--translate-terminal-input terminal-input)))
 
-    ;; three different terminator types: u, ~, and letters
-    ;; u und tilde have same structure
-    ;; letter terminated sequences have a different structure
-    (let
-        ((terminator (car (last terminal-input))))
-      (cond
-
-       ;; this protocol covers all keys with a prefix in `kkp--key-prefixes' except for this external one
-       ((equal terminal-input "200~")
-        #'xterm-translate-bracketed-paste)
-
-       ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
-       ((member terminator '(?u ?~))
-        (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
-               (splitted-keycodes (kkp--cl-split ?: (cl-first splitted-terminal-input))) ;; get keycodes from sequence
-               (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
-               ;; (text-as-codepoints (cl-third splitted-terminal-input))
-               (primary-key-code (cl-first splitted-keycodes))
-               (shifted-key-code (cl-second splitted-keycodes))
-               (modifiers (cl-first splitted-modifiers-events))
-               (key-code nil)
-               (modifier-num
-                (if modifiers
-                    (1-
-                     (kkp--ascii-chars-to-number modifiers))
-                  0)))
-
-          ;; check if keycode has shifted key:
-          ;; set key-code to shifted key-code & remove shift from modifiers
-          (if
-              (and
-               shifted-key-code
-               (not (member (kkp--ascii-chars-to-number primary-key-code) kkp--printable-ascii-letters)))
-              (progn
-                (setq key-code shifted-key-code)
-                (setq modifier-num (logand modifier-num (lognot 1))))
-            (setq key-code primary-key-code))
-
-          ;; create keybinding by concatenating the modifier string with the key-name
-          (let
-              ((modifier-str (kkp--create-modifiers-string modifier-num))
-               (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code)
-                                                          (if (equal terminator ?u)
-                                                              kkp--non-printable-keys-with-u-terminator
-                                                            kkp--non-printable-keys-with-tilde-terminator))))
-            (kbd (concat modifier-str key-name)))))
-
-       ;; terminal input has this form [1;modifier[:event-type]]{letter}
-       ((member terminator kkp--letter-terminators)
-        (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
-               (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
-               (modifiers (cl-first splitted-modifiers-events)) ;; get modifiers
-               (modifier-num
-                (if modifiers
-                    (1-
-                     (kkp--ascii-chars-to-number modifiers))
-                  0)))
-          (let
-              ((modifier-str (kkp--create-modifiers-string modifier-num))
-               (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
-            (kbd (concat modifier-str key-name)))))))))
 
 
 (defun kkp--get-enhancement-bit (enhancement)
