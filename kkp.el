@@ -406,7 +406,7 @@ This function returns the Emacs keybinding associated with the sequence read."
       (cond
 
        ;; this protocol covers all keys with a prefix in `kkp--key-prefixes' except for this external one
-       ((equal terminal-input "\e[200~")
+       ((equal terminal-input "200~")
         #'xterm-translate-bracketed-paste)
 
        ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
