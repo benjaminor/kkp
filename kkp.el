@@ -392,8 +392,8 @@ key codepoint."
     (cond
 
      ;; this protocol covers all keys with a prefix in `kkp--key-prefixes' except for this external one
-     ((equal terminal-input "200~")
-      #'xterm-translate-bracketed-paste)
+     ((equal (concat terminal-input) "200~")
+      (xterm-translate-bracketed-paste nil))
 
      ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
      ((member terminator '(?u ?~))
