@@ -13,13 +13,13 @@ This allows, if the terminal (and intermediaries such as terminal multiplexers) 
 the transmission of more detailed information about a key event from the terminal to Emacs, e.g., it transmits "<tab>" and "C-i" differently.
 
 Currently, there exists another solution which solves the same problem, xterm's "modifyOtherKeys", which is already supported by Emacs (and activated by default if the terminal supports it).
-KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_Lock>"), more key combinations (e.g., "C-M-S-l") and more modifiers, i.e., the Hyper and Super keys.
+KKP has the advantage of supporting more keys (e.g., "<menu>" or "<Scroll_Lock>"), more key combinations (e.g., "C-M-S-z") and more modifiers, i.e., the Hyper and Super keys.
 It can also dynamically detect if a terminal supports the protocol, whereas Emacs has to deduce "modifyOtherKeys" support from the TERM variable.
 
-** Status: Beta
+** Status
 This package supports the "Disambiguate escape codes" and "Report
-alternate keys" enhancements. I use it on a regular basis but it has
-not been tested extensively.
+alternate keys" enhancements. I use it on a regular basis and it has
+seen some testing from other users.
 
 ** Installation
 *** Melpa
@@ -55,12 +55,12 @@ If you want to know if your terminal supports kkp, use =kkp-print-terminal-suppo
 If you want to know which enhancements are activated, use =kkp-print-enabled-progressive-enhancement-flags=.
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
-By default, it is set to ='(disambiguate-escape-codes report-alternate-keys)=.
+By default, it is set to =(disambiguate-escape-codes report-alternate-keys)=.
 
 Note that when you activate only =disambiguate-escape-codes=,
 the terminal reports shifted keypresses which involve another modifier by sending the modifiers with the base layout of the key.
 This means "M-S-." (Meta-Shift-.) is not translated to "M-:" (on a German keyboard) and Emacs will probably not find the proper keybinding.
-='report-alternate-keys= fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
+=report-alternate-keys= fixes this, but if you do not want to activate it, you can remap keys by using the =key-translation-map=:
 
 #+begin_src emacs-lisp
 (define-key key-translation-map (kbd "M-S-.") (kbd "M-:"))
