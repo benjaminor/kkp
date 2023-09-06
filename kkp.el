@@ -531,6 +531,9 @@ does not have focus, as input from this terminal cannot be reliably read."
      (equal '(27 91 63) (cl-subseq reply 0 3))
      (eql 117 (car (last reply))))))
 
+(defun kkp--terminal-has-active-kkp-p ()
+  "Check if the current terminal has KKP activated."
+  (member (kkp--selected-terminal) kkp--active-terminal-list))
 
 (defun kkp--calculate-flags-integer ()
   "Calculate the flag integer to send to the terminal to activate the enhancements."
@@ -681,7 +684,8 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
 (defun kkp-print-terminal-support ()
   "Message if terminal supports KKP."
   (interactive)
-  (message "KKP%s supported in this terminal"
+  (message "This method is deprecated. Use `kkp-status` instead.\n\n
+KKP%s supported in this terminal"
            (if (kkp--terminal-supports-kkp-p)
                "" " not")))
 
@@ -691,8 +695,21 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
   "Message, if terminal supports KKP, currently enabled enhancements."
   (interactive)
   (if (kkp--terminal-supports-kkp-p)
-      (message "%s" (kkp--enabled-terminal-enhancements))
+      (message "This method is deprecated. Use `kkp-status` instead.\n\n%s" (kkp--enabled-terminal-enhancements))
+    (message "This method is deprecated. Use `kkp-status` instead.\n\nKKP not supported in this terminal.")))
+
+
+;;;###autoload
+(defun kkp-status ()
+  "Message, if terminal supports KKP, if yes, currently enabled enhancements."
+  (interactive)
+  (if (kkp--terminal-supports-kkp-p)
+      (message "KKP supported in this terminal.\n%s"
+               (if (kkp--terminal-has-active-kkp-p)
+                   (format "KKP active in this terminal. Enabled enhancements:\n%s" (kkp--enabled-terminal-enhancements))
+                 "KKP not active in this terminal."))
     (message "KKP not supported in this terminal.")))
+
 
 (provide 'kkp)
 ;;; kkp.el ends here
