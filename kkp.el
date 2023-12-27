@@ -684,8 +684,8 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
 (defun kkp-print-terminal-support ()
   "Message if terminal supports KKP."
   (interactive)
-  (message "This method is deprecated. Use `kkp-status` instead.\n\n
-KKP%s supported in this terminal"
+  (display-warning 'deprecation "This commmando `kkp-print-terminal-support' is deprecated. Use `kkp-status' instead." :warning)
+  (message "KKP%s supported in this terminal"
            (if (kkp--terminal-supports-kkp-p)
                "" " not")))
 
@@ -694,9 +694,10 @@ KKP%s supported in this terminal"
 (defun kkp-print-enabled-progressive-enhancement-flags ()
   "Message, if terminal supports KKP, currently enabled enhancements."
   (interactive)
+  (display-warning 'deprecation "This commmando `kkp-print-enabled-progressive-enhancement-flags' is deprecated. Use `kkp-status' instead." :warning)
   (if (kkp--terminal-supports-kkp-p)
-      (message "This method is deprecated. Use `kkp-status` instead.\n\n%s" (kkp--enabled-terminal-enhancements))
-    (message "This method is deprecated. Use `kkp-status` instead.\n\nKKP not supported in this terminal.")))
+      (message "Use `kkp-status` instead.\n\n%s" (kkp--enabled-terminal-enhancements))
+    (message "Use `kkp-status` instead.\n\nKKP not supported in this terminal.")))
 
 
 ;;;###autoload
