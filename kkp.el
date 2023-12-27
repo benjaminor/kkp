@@ -297,6 +297,8 @@ It is one of the symbols `shift', `alt', `control', `super',
 (defvar kkp--setup-visited-terminal-list
   nil "Internal variable to track visited terminals after enabling `global-kkp-mode´.")
 
+(defvar kkp--suspended-terminal-list
+  nil "Internal variable to track suspended terminals which have enabled KKP in activate state.")
 
 (defun kkp--mod-bits (modifier)
   "Return the KKP encoding bits that should be interpreted as MODIFIER.
@@ -601,6 +603,22 @@ does not have focus, as input from this terminal cannot be reliably read."
   (dolist (terminal kkp--active-terminal-list)
     (kkp--terminal-teardown terminal)))
 
+
+(defun kkp--suspend-in-terminal()
+  "If the terminal has activate KKP, disable it before suspending."
+  (let ((terminal (kkp--selected-terminal)))
+    (when (member terminal kkp--active-terminal-list)
+      (push terminal kkp--suspended-terminal-list)
+      (kkp--terminal-teardown terminal))))
+
+(defun kkp--resume-in-terminal()
+  "Restore KKP in resumed terminals where it was active before suspension."
+  (let ((terminal (kkp--selected-terminal)))
+    (when (member terminal kkp--suspended-terminal-list)
+      (setq kkp--suspended-terminal-list (delete terminal kkp--suspended-terminal-list))
+      (kkp-enable-in-terminal terminal))))
+
+
 (cl-defun kkp-enable-in-terminal (&optional (terminal (kkp--selected-terminal)))
   "Try to enable KKP support in Emacs running in the TERMINAL."
   (interactive)
@@ -660,6 +678,8 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
     (add-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
     ;; we call this on each frame teardown, this has no effects if kkp is not enabled
     (add-to-list 'delete-terminal-functions #'kkp--terminal-teardown)
+    (add-hook 'suspend-hook #'kkp--suspend-in-terminal)
+    (add-hook 'suspend-resume-hook #'kkp--resume-in-terminal)
 
     ;; this is by far the most reliable method to enable kkp in all associated terminals
     ;; trying to switch to each terminal with `with-selected-frame' does not work very well
@@ -677,6 +697,8 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
     (kkp--disable-in-active-terminals)
     (remove-hook 'tty-setup-hook #'kkp-enable-in-terminal)
     (remove-hook 'kill-emacs-hook #'kkp--disable-in-active-terminals)
+    (remove-hook 'suspend-hook #'kkp--suspend-in-terminal)
+    (remove-hook 'suspend-resume-hook #'kkp--resume-in-terminal)
     (remove-function after-focus-change-function #'kkp-focus-change)
     (setq delete-terminal-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
 
