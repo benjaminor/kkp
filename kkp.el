@@ -328,25 +328,6 @@ MODIFIER is one of the symbols `shift', `alt', `control',
   "Get the terminal that is now selected."
   (frame-terminal (selected-frame)))
 
-(defun kkp--cl-split (separator seq)
-  "Split SEQ along SEPARATOR and return all subsequences."
-  (let ((pos 0)
-        (last-pos 0)
-        (len (length seq))
-        (subseqs nil))
-    (while (< pos len)
-      (setq pos (cl-position separator seq :start last-pos))
-      (unless pos
-        (setq pos len))
-      (let ((subseq (cl-subseq seq last-pos pos)))
-        (push subseq subseqs))
-      (setq last-pos (1+ pos)))
-    (nreverse subseqs)))
-
-(defun kkp--ascii-chars-to-number (seq)
-  "Calculate an integer from a sequence SEQ of decimal ascii bytes."
-  (string-to-number (apply #'string seq)))
-
 (defun kkp--bit-set-p (num bit)
   "Check if BIT is set in NUM."
   (not (eql (logand num bit) 0)))
