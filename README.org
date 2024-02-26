@@ -51,8 +51,7 @@ Once that is done, this package can be installed.
 
 kkp.el works out of the box by enabling =global-kkp-mode= and is customizable via the =kkp-*= customization variables.
 
-If you want to know if your terminal supports kkp, use =kkp-print-terminal-support=.
-If you want to know which enhancements are activated, use =kkp-print-enabled-progressive-enhancement-flags=.
+If you want to know if your terminal supports kkp, if its activated, and if yes, which enhancements are active, use =kkp-status=.
 
 You can control the enabled [[https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement][enhancements]] by setting =kkp-active-enhancements=.
 By default, it is set to =(disambiguate-escape-codes report-alternate-keys)=.
