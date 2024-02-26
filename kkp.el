@@ -709,7 +709,7 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
   (if (kkp--terminal-supports-kkp-p)
       (message "KKP supported in this terminal.\n%s"
                (if (kkp--terminal-has-active-kkp-p)
-                   (format "KKP active in this terminal. Enabled enhancements:\n%s" (kkp--enabled-terminal-enhancements))
+                   (format "KKP active in this terminal. Enabled enhancements: %s" (mapconcat 'symbol-name (kkp--enabled-terminal-enhancements) " and "))
                  "KKP not active in this terminal."))
     (message "KKP not supported in this terminal.")))
 
