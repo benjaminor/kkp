@@ -384,69 +384,95 @@ key codepoint."
         rep
       (string keycode))))
 
+(defun kkp--handle-bracketed-paste (terminal-input)
+  "Handle bracketed paste mode sequences.
+TERMINAL-INPUT is a list of characters representing the terminal input
+sequence. This function checks if TERMINAL-INPUT matches the bracketed
+paste mode sequence ('200~') and calls `xterm-translate-bracketed-paste`
+if it does."
+  (when (equal (concat terminal-input) "200~")
+    (xterm-translate-bracketed-paste nil)))
+
+
+(defun kkp--handle-u-or-tilde-terminators (terminator terminal-input)
+  "Handle input sequences ending with ?u or ?~ terminators.
+TERMINATOR is the last character in the TERMINAL-INPUT sequence,
+indicating the end of the sequence. TERMINAL-INPUT is a list of
+characters representing the terminal input sequence. This function
+contains the specific logic for processing sequences terminated by ?u or
+?~."
+  (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
+         (splitted-keycodes (kkp--cl-split ?: (cl-first splitted-terminal-input))) ;; get keycodes from sequence
+         (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
+         ;; (text-as-codepoints (cl-third splitted-terminal-input))
+         (primary-key-code (cl-first splitted-keycodes))
+         (shifted-key-code (cl-second splitted-keycodes))
+         (modifiers (cl-first splitted-modifiers-events))
+         (key-code nil)
+         (modifier-num
+          (if modifiers
+              (1-
+               (kkp--ascii-chars-to-number modifiers))
+            0)))
+
+    ;; check if keycode has shifted key:
+    ;; set key-code to shifted key-code & remove shift from modifiers
+    (if
+        (and
+         shifted-key-code
+         (not (member (kkp--ascii-chars-to-number primary-key-code) kkp--printable-ascii-letters)))
+        (progn
+          (setq key-code shifted-key-code)
+          (setq modifier-num (logand modifier-num (lognot 1))))
+      (setq key-code primary-key-code))
+
+    ;; create keybinding by concatenating the modifier string with the key-name
+    (let
+        ((modifier-str (kkp--create-modifiers-string modifier-num))
+         (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code)
+                                                    (if (equal terminator ?u)
+                                                        kkp--non-printable-keys-with-u-terminator
+                                                      kkp--non-printable-keys-with-tilde-terminator))))
+      (kbd (concat modifier-str key-name)))))
+
+(defun kkp--handle-letter-terminators (terminator terminal-input)
+  "Handle input sequences ending with letter terminators.
+TERMINATOR is the last character in the TERMINAL-INPUT sequence,
+indicating the type of the terminator. TERMINAL-INPUT is a list of
+characters representing the terminal input sequence."
+  (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator
+                                                           terminal-input)))
+         (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
+         (modifiers (cl-first splitted-modifiers-events)) ;; get modifiers
+         (modifier-num
+          (if modifiers
+              (1-
+               (kkp--ascii-chars-to-number modifiers))
+            0)))
+    (let
+        ((modifier-str (kkp--create-modifiers-string modifier-num))
+         (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
+      (kbd (concat modifier-str key-name))))
+  )
+
 (defun kkp--translate-terminal-input (terminal-input)
-  "Translate TERMINAL-INPUT according to KKP to the Emacs keybinding."
-  ;; three different terminator types: u, ~, and letters
-  ;; u und tilde have same structure
-  ;; letter terminated sequences have a different structure
-  (let
-      ((terminator (car (last terminal-input))))
-    (cond
+  "Translate TERMINAL-INPUT according to KKP into an Emacs keybinding.
+TERMINAL-INPUT is a list of characters representing the terminal input
+sequence. This function dispatches the input sequence to the appropriate
+handler based on its terminator:
+- Bracketed paste mode sequences are
+handled by `kkp--handle-bracketed-paste`.
+- Sequences ending with ?u or ?~
+are handled by `kkp--handle-u-or-tilde-terminators`.
+- Sequences ending with a letter terminator are handled by
+`kkp--handle-letter-terminators`.
+The function returns the Emacs
+keybinding associated with the terminal input sequence."
+  (let ((terminator (car (last terminal-input))))
+    (or (kkp--handle-bracketed-paste terminal-input)
+        (and (member terminator '(?u ?~)) (kkp--handle-u-or-tilde-terminators terminator terminal-input))
+        (and (member terminator kkp--letter-terminators) (kkp--handle-letter-terminators terminator terminal-input)))))
 
-     ;; this protocol covers all keys with a prefix in `kkp--key-prefixes' except for this external one
-     ((equal (concat terminal-input) "200~")
-      (xterm-translate-bracketed-paste nil))
-
-     ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
-     ((member terminator '(?u ?~))
-      (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
-             (splitted-keycodes (kkp--cl-split ?: (cl-first splitted-terminal-input))) ;; get keycodes from sequence
-             (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
-             ;; (text-as-codepoints (cl-third splitted-terminal-input))
-             (primary-key-code (cl-first splitted-keycodes))
-             (shifted-key-code (cl-second splitted-keycodes))
-             (modifiers (cl-first splitted-modifiers-events))
-             (key-code nil)
-             (modifier-num
-              (if modifiers
-                  (1-
-                   (kkp--ascii-chars-to-number modifiers))
-                0)))
-
-        ;; check if keycode has shifted key:
-        ;; set key-code to shifted key-code & remove shift from modifiers
-        (if
-            (and
-             shifted-key-code
-             (not (member (kkp--ascii-chars-to-number primary-key-code) kkp--printable-ascii-letters)))
-            (progn
-              (setq key-code shifted-key-code)
-              (setq modifier-num (logand modifier-num (lognot 1))))
-          (setq key-code primary-key-code))
-
-        ;; create keybinding by concatenating the modifier string with the key-name
-        (let
-            ((modifier-str (kkp--create-modifiers-string modifier-num))
-             (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code)
-                                                        (if (equal terminator ?u)
-                                                            kkp--non-printable-keys-with-u-terminator
-                                                          kkp--non-printable-keys-with-tilde-terminator))))
-          (kbd (concat modifier-str key-name)))))
-
-     ;; terminal input has this form [1;modifier[:event-type]]{letter}
-     ((member terminator kkp--letter-terminators)
-      (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
-             (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
-             (modifiers (cl-first splitted-modifiers-events)) ;; get modifiers
-             (modifier-num
-              (if modifiers
-                  (1-
-                   (kkp--ascii-chars-to-number modifiers))
-                0)))
-        (let
-            ((modifier-str (kkp--create-modifiers-string modifier-num))
-             (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
-          (kbd (concat modifier-str key-name))))))))
 
 (defun kkp--read-terminal-events (initial-byte)
   "Read terminal events until an acceptable terminator is found.
