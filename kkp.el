@@ -448,23 +448,20 @@ key codepoint."
              (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
           (kbd (concat modifier-str key-name))))))))
 
+(defun kkp--read-terminal-events (initial-byte)
+  "Read terminal events until an acceptable terminator is found.
+INITIAL-BYTE is the first byte of the sequence."
+  (let ((events (list initial-byte)))
+    (while (not (member (cl-first events) kkp--acceptable-terminators))
+      (push (read-event) events))
+    (nreverse events)))
 
 (defun kkp--process-keys (first-byte)
   "Read input from terminal to parse key events to an Emacs keybinding.
 FIRST-BYTE is the byte read before this function is called.
 This function returns the Emacs keybinding associated with the sequence read."
-
-  (let ((terminal-input (list first-byte)))
-
-    ;; read in events from stdin until we have found a terminator
-    (while (not (member (cl-first terminal-input) kkp--acceptable-terminators))
-      (let ((evt (read-event)))
-        (push evt terminal-input)))
-
-    ;; reverse input has we pushed events to the front of the list
-    (setq terminal-input (nreverse terminal-input))
+  (let ((terminal-input (kkp--read-terminal-events first-byte)))
     (kkp--translate-terminal-input terminal-input)))
-
 
 
 (defun kkp--get-enhancement-bit (enhancement)
@@ -653,7 +650,7 @@ does not have focus, as input from this terminal cannot be reliably read."
     (when
         (and (not (member terminal kkp--setup-visited-terminal-list))
              (frame-focus-state frame))
-      (kkp-enable-in-terminal terminal))))
+      (kkp-enable-in-terminal))))
 
 (defun kkp--display-symbol-keys-p (orig-fun &rest args)
   "Advice function for display-symbols-key-p ORIG-FUN with ARGS.
