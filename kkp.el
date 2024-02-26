@@ -700,7 +700,7 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
     (remove-hook 'suspend-hook #'kkp--suspend-in-terminal)
     (remove-hook 'suspend-resume-hook #'kkp--resume-in-terminal)
     (remove-function after-focus-change-function #'kkp-focus-change)
-    (setq delete-terminal-functions (delete #'kkp--terminal-teardown kkp--active-terminal-list)))))
+    (setq delete-terminal-functions (delete #'kkp--terminal-teardown delete-terminal-functions)))))
 
 ;;;###autoload
 (defun kkp-print-terminal-support ()
