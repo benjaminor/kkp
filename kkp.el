@@ -434,15 +434,14 @@ contains the specific logic for processing sequences terminated by ?u or
 TERMINATOR is the last character in the TERMINAL-INPUT sequence,
 indicating the type of the terminator. TERMINAL-INPUT is a list of
 characters representing the terminal input sequence."
-  (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator
-                                                           terminal-input)))
-         (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
-         (modifiers (cl-first splitted-modifiers-events)) ;; get modifiers
-         (modifier-num
-          (if modifiers
-              (1-
-               (kkp--ascii-chars-to-number modifiers))
-            0)))
+  (let* ((input-string (mapconcat 'char-to-string (remq terminator terminal-input) ""))
+         (input-parts (split-string input-string ";"))
+         (modifier-parts (split-string (cl-second input-parts) ":")) ;; list of modifiers and event types
+         (modifier-string (cl-first modifier-parts))
+         (modifier-num (if modifier-string
+                           (1- (string-to-number modifier-string))
+                         0)))
+
     (let
         ((modifier-str (kkp--create-modifiers-string modifier-num))
          (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
@@ -462,6 +461,8 @@ are handled by `kkp--handle-u-or-tilde-terminators`.
 `kkp--handle-letter-terminators`.
 The function returns the Emacs
 keybinding associated with the terminal input sequence."
+
+  ;; input has this form: keycode[:[shifted-key][:base-layout-key]];[modifiers[:event-type]][;text-as-codepoints]{u~}
   (let ((terminator (car (last terminal-input))))
     (or (kkp--handle-bracketed-paste terminal-input)
         (and (member terminator '(?u ?~)) (kkp--handle-u-or-tilde-terminators terminator terminal-input))
