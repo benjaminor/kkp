@@ -701,25 +701,6 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
     (remove-function after-focus-change-function #'kkp-focus-change)
     (setq delete-terminal-functions (delete #'kkp--terminal-teardown delete-terminal-functions)))))
 
-;;;###autoload
-(defun kkp-print-terminal-support ()
-  "Message if terminal supports KKP."
-  (interactive)
-  (display-warning 'deprecation "This commmando `kkp-print-terminal-support' is deprecated. Use `kkp-status' instead." :warning)
-  (message "KKP%s supported in this terminal"
-           (if (kkp--terminal-supports-kkp-p)
-               "" " not")))
-
-
-;;;###autoload
-(defun kkp-print-enabled-progressive-enhancement-flags ()
-  "Message, if terminal supports KKP, currently enabled enhancements."
-  (interactive)
-  (display-warning 'deprecation "This commmando `kkp-print-enabled-progressive-enhancement-flags' is deprecated. Use `kkp-status' instead." :warning)
-  (if (kkp--terminal-supports-kkp-p)
-      (message "Use `kkp-status` instead.\n\n%s" (kkp--enabled-terminal-enhancements))
-    (message "Use `kkp-status` instead.\n\nKKP not supported in this terminal.")))
-
 
 ;;;###autoload
 (defun kkp-status ()
