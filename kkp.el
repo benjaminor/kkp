@@ -281,7 +281,7 @@ It is one of the symbols `shift', `alt', `control', `super',
     (?S . "<f4>")))
 
 (defvar kkp--letter-terminators
-  '(?A ?B ?C ?D ?E ?F ?H ?P ?Q ?R ?S))
+  (mapcar #'car kkp--non-printable-keys-with-letter-terminator))
 
 (defvar kkp--acceptable-terminators
   (cl-concatenate 'list '(?u ?~) kkp--letter-terminators))
