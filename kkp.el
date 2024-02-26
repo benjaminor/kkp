@@ -393,9 +393,9 @@ contains the specific logic for processing sequences terminated by ?u or
          (is-shifted (and secondary-keycode
                           (not (member (string-to-number primary-keycode) kkp--printable-ascii-letters))))
          (final-key-code (if is-shifted secondary-keycode primary-keycode))
-         (modifier-parts (split-string (cl-second input-parts) ":")) ;; list of modifiers and event types
+         (modifier-parts (split-string (or (cl-second input-parts) "") ":")) ;; list of modifiers and event types
          (modifier-string (cl-first modifier-parts))
-         (modifier-num (if modifier-string
+         (modifier-num (if (not (string-empty-p modifier-string))
                            (1- (string-to-number modifier-string))
                          0)))
 
@@ -417,17 +417,15 @@ indicating the type of the terminator. TERMINAL-INPUT is a list of
 characters representing the terminal input sequence."
   (let* ((input-string (mapconcat 'char-to-string (remq terminator terminal-input) ""))
          (input-parts (split-string input-string ";"))
-         (modifier-parts (split-string (cl-second input-parts) ":")) ;; list of modifiers and event types
+         (modifier-parts (split-string (or (cl-second input-parts) "") ":")) ;; list of modifiers and event types
          (modifier-string (cl-first modifier-parts))
-         (modifier-num (if modifier-string
+         (modifier-num (if (not (string-empty-p modifier-string))
                            (1- (string-to-number modifier-string))
-                         0)))
-
-    (let
-        ((modifier-str (kkp--create-modifiers-string modifier-num))
+                         0))
+         (modifier-str (kkp--create-modifiers-string modifier-num))
          (key-name (alist-get terminator kkp--non-printable-keys-with-letter-terminator)))
-      (kbd (concat modifier-str key-name))))
-  )
+
+    (kbd (concat modifier-str key-name))))
 
 (defun kkp--translate-terminal-input (terminal-input)
   "Translate TERMINAL-INPUT according to KKP into an Emacs keybinding.
