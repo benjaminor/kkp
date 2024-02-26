@@ -401,38 +401,32 @@ indicating the end of the sequence. TERMINAL-INPUT is a list of
 characters representing the terminal input sequence. This function
 contains the specific logic for processing sequences terminated by ?u or
 ?~."
-  (let* ((splitted-terminal-input (kkp--cl-split ?\; (remq terminator terminal-input)))
-         (splitted-keycodes (kkp--cl-split ?: (cl-first splitted-terminal-input))) ;; get keycodes from sequence
-         (splitted-modifiers-events (kkp--cl-split ?: (cl-second splitted-terminal-input))) ;; list of modifiers and event types
-         ;; (text-as-codepoints (cl-third splitted-terminal-input))
-         (primary-key-code (cl-first splitted-keycodes))
-         (shifted-key-code (cl-second splitted-keycodes))
-         (modifiers (cl-first splitted-modifiers-events))
-         (key-code nil)
-         (modifier-num
-          (if modifiers
-              (1-
-               (kkp--ascii-chars-to-number modifiers))
-            0)))
+  (let* ((terminator-alist (pcase terminator
+                             (?u kkp--non-printable-keys-with-u-terminator)
+                             (?~ kkp--non-printable-keys-with-tilde-terminator)))
+         (input-string (mapconcat 'char-to-string (remq terminator terminal-input) ""))
+         (input-parts (split-string input-string ";"))
+         (keycode-parts (split-string (cl-first input-parts) ":")) ;; get keycodes from sequence
+         (primary-keycode (cl-first keycode-parts))
+         (secondary-keycode (cl-second keycode-parts))
+         (is-shifted (and secondary-keycode
+                          (not (member (string-to-number primary-keycode) kkp--printable-ascii-letters))))
+         (final-key-code (if is-shifted secondary-keycode primary-keycode))
+         (modifier-parts (split-string (cl-second input-parts) ":")) ;; list of modifiers and event types
+         (modifier-string (cl-first modifier-parts))
+         (modifier-num (if modifier-string
+                           (1- (string-to-number modifier-string))
+                         0)))
 
-    ;; check if keycode has shifted key:
-    ;; set key-code to shifted key-code & remove shift from modifiers
-    (if
-        (and
-         shifted-key-code
-         (not (member (kkp--ascii-chars-to-number primary-key-code) kkp--printable-ascii-letters)))
-        (progn
-          (setq key-code shifted-key-code)
-          (setq modifier-num (logand modifier-num (lognot 1))))
-      (setq key-code primary-key-code))
+    ;; if shifted keycode exists, remove shift from modifier number
+    (when is-shifted
+      (setq modifier-num (logand modifier-num (lognot 1))))
 
     ;; create keybinding by concatenating the modifier string with the key-name
     (let
         ((modifier-str (kkp--create-modifiers-string modifier-num))
-         (key-name (kkp--get-keycode-representation (kkp--ascii-chars-to-number key-code)
-                                                    (if (equal terminator ?u)
-                                                        kkp--non-printable-keys-with-u-terminator
-                                                      kkp--non-printable-keys-with-tilde-terminator))))
+         (key-name (kkp--get-keycode-representation (string-to-number final-key-code)
+                                                    terminator-alist)))
       (kbd (concat modifier-str key-name)))))
 
 (defun kkp--handle-letter-terminators (terminator terminal-input)
