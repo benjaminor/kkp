@@ -277,7 +277,6 @@ It is one of the symbols `shift', `alt', `control', `super',
     (?H . "<home>")
     (?P . "<f1>")
     (?Q . "<f2>")
-    (?R . "<f3>") ;; TODO remove in the future as this conflicts with *Cursor Position Report* (https://github.com/kovidgoyal/kitty/commit/cd92d50a0d34b7c3525377770fba47ce75cf1cfc)
     (?S . "<f4>")))
 
 (defvar kkp--letter-terminators
