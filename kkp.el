@@ -569,6 +569,8 @@ does not have focus, as input from this terminal cannot be reliably read."
       (setq terminal-input (concat terminal-input (string chr))))
 
     ;; NOTE: condition: CSI?<flags>u CSI?...c must be in response
+    ;; CSI? is already in response as it was registered as handler for the async request
+    ;; thus it is not in terminal-input
     (when (string-match-p (rx line-start
                               (+ digit) ;; <flags>
                               "u\e[?"
