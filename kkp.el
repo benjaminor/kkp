@@ -299,6 +299,11 @@ It is one of the symbols `shift', `alt', `control', `super',
 (defvar kkp--suspended-terminal-list
   nil "Internal variable to track suspended terminals which have enabled KKP in activate state.")
 
+
+(defvar kkp--volatile-input-decode-map-helper
+  nil "Internal helper variable for quickfix of kkp activation in terminal.")
+
+
 (defun kkp--mod-bits (modifier)
   "Return the KKP encoding bits that should be interpreted as MODIFIER.
 
@@ -501,7 +506,14 @@ This function code is copied from `xterm--query'."
                              []))))))
 
       (funcall register handlers)
-      (send-string-to-terminal (kkp--csi-escape query) terminal))))
+      ;; NOTE: fix for #9: Somehow input-decode-map does not get
+      ;; directly updated with the handlers. Printing the
+      ;; input-decode-map (and storing it to a helper variable),
+      ;; together with a 0.01 delay in sending the string to the
+      ;; terminal seems to fix it. I haven't yet found out the
+      ;; underlying reason behind it.
+      (setq kkp--volatile-input-decode-map-helper (prin1-to-string input-decode-map))
+      (run-with-timer 0.01 nil (lambda () (send-string-to-terminal (kkp--csi-escape query) terminal))))))
 
 
 (defun kkp--enabled-terminal-enhancements ()
