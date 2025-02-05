@@ -504,7 +504,7 @@ This function code is copied from `xterm--query'."
       (send-string-to-terminal (kkp--csi-escape query) terminal))))
 
 
-(defun kkp--enabled-terminal-enhancements ()
+(defun kkp--this-terminal-enabled-enhancements ()
   "Query the current terminal and return list of currently enabled enhancements."
   (let ((reply (kkp--query-terminal-sync "?u")))
     (when (not reply)
@@ -519,7 +519,7 @@ This function code is copied from `xterm--query'."
       enabled-enhancements)))
 
 
-(defun kkp--terminal-supports-kkp-p ()
+(defun kkp--this-terminal-supports-kkp-p ()
   "Check if the current terminal supports the Kitty Keyboard Protocol.
 This does not work well if checking for another terminal which
 does not have focus, as input from this terminal cannot be reliably read."
@@ -529,7 +529,7 @@ does not have focus, as input from this terminal cannot be reliably read."
      (equal '(27 91 63) (cl-subseq reply 0 3))
      (eql 117 (car (last reply))))))
 
-(defun kkp--terminal-has-active-kkp-p ()
+(defun kkp--this-terminal-has-active-kkp-p()
   "Check if the current terminal has KKP activated."
   (member (kkp--selected-terminal) kkp--active-terminal-list))
 
@@ -705,10 +705,10 @@ This ensures display-symbols-key-p returns non nil in a terminal with KKP enable
 (defun kkp-status ()
   "Message, if terminal supports KKP, if yes, currently enabled enhancements."
   (interactive)
-  (if (kkp--terminal-supports-kkp-p)
+  (if (kkp--this-terminal-supports-kkp-p)
       (message "KKP supported in this terminal.\n%s"
-               (if (kkp--terminal-has-active-kkp-p)
-                   (format "KKP active in this terminal. Enabled enhancements: %s" (mapconcat 'symbol-name (kkp--enabled-terminal-enhancements) " and "))
+               (if (kkp--this-terminal-has-active-kkp-p)
+                   (format "KKP active in this terminal. Enabled enhancements: %s" (mapconcat 'symbol-name (kkp--this-terminal-enabled-enhancements) " and "))
                  "KKP not active in this terminal."))
     (message "KKP not supported in this terminal.")))
 
