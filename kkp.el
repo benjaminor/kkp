@@ -549,6 +549,55 @@ does not have focus, as input from this terminal cannot be reliably read."
                 (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
+;; NOTE this is a copy from x-alternatives-map
+(defvar kkp-alternatives-map
+  (let ((map (make-sparse-keymap)))
+    ;; Map certain keypad keys into ASCII characters that people usually expect.
+    (define-key map [M-backspace] [?\M-\d])
+    (define-key map [M-delete] [?\M-\d])
+    (define-key map [M-tab] [?\M-\t])
+    (define-key map [M-linefeed] [?\M-\n])
+    (define-key map [M-clear] [?\M-\C-l])
+    (define-key map [M-return] [?\M-\C-m])
+    (define-key map [M-escape] [?\M-\e])
+    (unless (featurep 'ns)
+      (define-key map [iso-lefttab] [backtab])
+      (define-key map [S-iso-lefttab] [backtab]))
+    (and (or (eq system-type 'windows-nt)
+	         (featurep 'ns))
+	     (define-key map [S-tab] [backtab]))
+    map)
+  "Keymap of possible alternative meanings for some keys.")
+
+;; NOTE this is a copy of the x-setup-function-keys function
+(defun kkp-setup-function-keys (terminal)
+  "Activate alternative keypad mappings in TERMINAL.
+This function updates the `local-function-key-map` of the first frame on
+TERMINAL’s display, reparenting it to `kkp-alternatives-map`. This remapping
+causes certain keys, such as [M-backspace], to be interpreted like ASCII
+characters (e.g., [?\M-\\d]). Once set, the parameter
+`kkp-setup-function-keys` is stored on TERMINAL to avoid repeated setup."
+  (let ((frame (car (frames-on-display-list terminal))))
+    (unless (terminal-parameter terminal 'kkp-setup-function-keys)
+      ;; Map certain keypad keys into ASCII characters that people usually expect.
+      (with-selected-frame frame
+        (set-keymap-parent kkp-alternatives-map (keymap-parent local-function-key-map))
+        (set-keymap-parent local-function-key-map kkp-alternatives-map)))
+    (set-terminal-parameter terminal 'kkp-setup-function-keys t)))
+
+(defun kkp-teardown-function-keys (terminal)
+  "Deactivate alternative keypad mappings in TERMINAL.
+Restore the original `local-function-key-map` for the first frame on TERMINAL’s
+display by removing `kkp-alternatives-map` as a parent. Once done, the parameter
+`kkp-setup-function-keys` on TERMINAL is reset so that setup can be applied
+again later if needed."
+  (let ((frame (car (frames-on-display-list terminal))))
+    (when (terminal-parameter terminal 'kkp-setup-function-keys)
+      ;; Map certain keypad keys into ASCII characters that people usually expect.
+      (with-selected-frame frame
+        (set-keymap-parent local-function-key-map (keymap-parent kkp-alternatives-map)))
+      (set-terminal-parameter terminal 'kkp-setup-function-keys nil))))
+
 
 (defun kkp--terminal-teardown (terminal)
   "Run procedures to disable KKP in TERMINAL."
@@ -556,6 +605,7 @@ does not have focus, as input from this terminal cannot be reliably read."
       (and
        (terminal-live-p terminal)
        (member terminal kkp--active-terminal-list))
+    (kkp-teardown-function-keys terminal)
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
     (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
 
@@ -594,6 +644,7 @@ does not have focus, as input from this terminal cannot be reliably read."
               (send-string-to-terminal (kkp--csi-escape (format ">%su" enhancement-flag)) terminal)
 
               (push terminal kkp--active-terminal-list)
+              (kkp-setup-function-keys terminal)
               (set-terminal-parameter terminal 'kkp--previous-normal-erase-is-backspace-val (terminal-parameter terminal 'normal-erase-is-backspace))
               (normal-erase-is-backspace-mode 1)
 
