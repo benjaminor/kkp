@@ -1,6 +1,6 @@
 ;;; kkp.el --- Enable support for the Kitty Keyboard Protocol -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024  Benjamin Orthen
+;; Copyright (C) 2025  Benjamin Orthen
 
 ;; Author: Benjamin Orthen <contact@orthen.net>
 ;; Maintainer: Benjamin Orthen <contact@orthen.net>
