@@ -65,6 +65,22 @@ This means "M-S-." (Meta-Shift-.) is not translated to "M-:" (on a German keyboa
 (define-key key-translation-map (kbd "M-S-.") (kbd "M-:"))
 #+end_src
 
+** Debugging
+
+If you want to know if your terminal supports kkp, if its activated, and if yes, which enhancements are active, use =kkp-status=.
+
+To determine how your keyboard input is translated, you can use the helper function =kkp-debug-describe-key-translation-chain=.
+To use this debugging helper, you can either:
+#+begin_src emacs-lisp
+  ;;
+  ;;   M-x load-library RET kkp-debug RET
+  ;;
+  ;; or add (require 'kkp-debug) to your Emacs init file.
+  ;;
+  ;; Then execute M-x kkp-debug-describe-key-translation-chain
+#+end_src
+
+
 ** Background
 
 The standard xterm encoding is quite old and cannot transmit key combinations such as "C-.".
