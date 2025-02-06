@@ -42,6 +42,20 @@
 (require 'cl-lib)
 (require 'kkp)
 
+(defvar kkp-debug--key-prompt "Input your key:")
+
+(defun kkp-debug--key-sequence-has-shift (keyseq)
+  "Check if any event in KEYSEQ includes the shift modifier."
+  (seq-some (lambda (key) (member 'shift (event-modifiers key))) keyseq))
+
+(defun kkp-debug--remove-shift-from-keyseq (keyseq)
+  "Return a new key sequence from KEYSEQ with shift removed from all events."
+  (vconcat (mapcar (lambda (key)
+                     (let ((mods (remove 'shift (event-modifiers key)))
+                           (basic (event-basic-type key))) ;; Get the base character
+                       (event-convert-list (append mods (list basic))))) ;; Rebuild the event
+                   keyseq)))
+
 (defun kkp-debug--menu-item-binding (binding)
   "Return the \"real\" binding behind a menu-item BINDING.
 If BINDING is a menu-item form, extract its REAL-BINDING.
@@ -107,7 +121,7 @@ Replicates prefix descent like `lookup-key' but does not actually call it."
   "Read a full key sequence from the terminal.
 This function uses `read-event' with a short timeout to gather all parts
 of the sequence and returns them as a list of events."
-  (let ((events (list (read-event "Input your key: ")))
+  (let ((events (list (read-event kkp-debug--key-prompt)))
         (timeout 0.1)
         evt)
     ;; Gather additional events with a short timeout.
@@ -169,46 +183,53 @@ The resulting key sequence and its final command binding are displayed.
 Output is arranged in aligned columns for clarity."
   (interactive)
   (with-help-window "*Key Translation Chain*"
-    (let* ((kkp-is-active (kkp--this-terminal-has-active-kkp-p))
-           (events (kkp-debug--get-key-events-from-terminal))
-           (raw-key (vconcat events))
-           ;; Stage 1: Input decoding (with KKP fallback).
-           (fallback-result
-            (if kkp-is-active
-                (kkp-debug--translate-events-with-kkp-fallback events)
-              ;; somehow lookup-key does not always find the correct mapping in
-              ;; input-decode-map after we have deactived global-kkp-mode
-              (kkp-debug--lookup-key-sequence input-decode-map events)))
-           (input-decode-output (if (and fallback-result (not (numberp fallback-result)))
-                                    fallback-result
-                                  raw-key))
-           ;; Check if the decoded key sequence already has a normal binding.
-           (normal-binding (key-binding input-decode-output))
-           ;; Stage 2: Apply local-function-key-map only if no normal binding exists.
-           (local-result (if normal-binding
-                             nil
-                           (let ((temp (lookup-key local-function-key-map input-decode-output)))
-                             (and (not (numberp temp)) temp))))
-           (local-output (or local-result input-decode-output))
-           ;; Stage 3: Always apply key-translation-map.
-           (translation-result (let ((temp (lookup-key key-translation-map local-output)))
-                                 (and (not (numberp temp)) temp)))
-           (final-output (or translation-result local-output))
-           (final-binding (key-binding final-output)))
-      (princ (format "%-40s %s\n" "KKP is active:" (if kkp-is-active "YES" "NO")))
-      (princ (format "%-40s %s (key vector: %s)\n" "Raw key events:" (key-description raw-key) raw-key))
-      (princ (format "%-40s %s\n" "After input-decode-map:" (key-description input-decode-output)))
-      (princ (format "%-40s %s\n" "Normal binding (if any):" (or (and normal-binding (prin1-to-string normal-binding))
-                                                                 "none")))
-      (princ (format "%-40s %s => %s\n" "After local-function-key-map:"
-                     (if normal-binding "not considered" (if local-result "found" "not found"))
-                     (key-description local-output)))
-      (princ (format "%-40s %s => %s\n" "After key-translation-map:"
-                     (if translation-result "found" "not found")
-                     (key-description final-output)))
-      (princ (format "%-40s %s\n" "Final command binding:" (or final-binding "undefined")))
-      (unless final-binding
-        (princ (format "\n%s" "If translate-upper-case-key-bindings is t and no binding exists for the upper-case sequence, Emacs may fall back to the lower-case sequence."))))))
+    (let* ((kkp-is-active (kkp--this-terminal-has-active-kkp-p)))
+
+      (if kkp-is-active
+          (let* ((events (kkp-debug--get-key-events-from-terminal))
+                 (raw-key (vconcat events))
+                 (input-decoded-keys (kkp-debug--translate-events-with-kkp-fallback events))
+                 ;; Check if the decoded key sequence already has a normal binding.
+                 (normal-binding (key-binding input-decoded-keys))
+                 ;; Stage 2: Apply local-function-key-map only if no normal binding exists.
+                 (local-result (if normal-binding
+                                   nil
+                                 (let ((temp (lookup-key local-function-key-map input-decoded-keys)))
+                                   (and (not (numberp temp)) temp))))
+                 (local-output (or local-result input-decoded-keys))
+                 ;; Stage 3: Always apply key-translation-map.
+                 (translation-result (let ((temp (lookup-key key-translation-map local-output)))
+                                       (and (not (numberp temp)) temp)))
+                 (prelim-final-output (or translation-result local-output))
+                 (prelim-final-binding (key-binding prelim-final-output))
+                 (prelim-final-output-has-shift (kkp-debug--key-sequence-has-shift prelim-final-output))
+                 (should-lowercase-binding (and (not prelim-final-binding) prelim-final-output-has-shift translate-upper-case-key-bindings))
+                 (lowercase-output (kkp-debug--remove-shift-from-keyseq prelim-final-output))
+                 (final-binding (if should-lowercase-binding
+                                    (key-binding lowercase-output)
+                                  prelim-final-binding)))
+            (princ (format "%-45s %s\n" "KKP is active:" (if kkp-is-active "YES" "NO")))
+            (princ (format "%-45s %s (key vector: %s)\n" "Raw key events:" (key-description raw-key) raw-key))
+            (princ (format "%-45s %s\n" "After input-decode-map:" (key-description input-decoded-keys)))
+            (princ (format "%-45s %s\n" "Normal binding (if any):" (or normal-binding "none")))
+            (princ (format "%-45s %s => %s\n" "After local-function-key-map:"
+                           (if normal-binding "not considered" (if local-result "found" "not found"))
+                           (key-description local-output)))
+            (princ (format "%-45s %s => %s\n" "After key-translation-map:"
+                           (if translation-result "found" "not found")
+                           (key-description prelim-final-output)))
+            (when (and should-lowercase-binding final-binding)
+              (princ (format "%-45s %s => %s\n" "Uppercase to lowercase binding:" (key-description prelim-final-output) (key-description lowercase-output))))
+            (princ (format "%-45s %s\n" "Final command binding (in this help buffer):" (or final-binding "undefined"))))
+
+
+        ;; KKP is not active
+        (let ((translated-keys (read-key-sequence-vector kkp-debug--key-prompt))
+              (raw-key (this-single-command-raw-keys)))
+          (princ (format "%-45s %s\n" "KKP is active:" (if kkp-is-active "YES" "NO")))
+          (princ (format "%-45s %s (key vector: %s)\n" "Raw key events:" (key-description raw-key) raw-key))
+          (princ (format "%-45s %s\n" "After all key translation maps:" (key-description translated-keys)))
+          (princ (format "%-45s %s\n" "Final command binding (in this help buffer):" (or (key-binding translated-keys) "undefined"))))))))
 
 (provide 'kkp-debug)
 ;;; kkp-debug.el ends here
