@@ -76,9 +76,15 @@ For an automated solution, see the code setup in [[https://github.com/benjaminor
 
 If you want to know if your terminal supports kkp, if its activated, and if yes, which enhancements are active, use =kkp-status=.
 
-To determine how your keyboard input is translated, you can use the helper function =kkp-debug-describe-key-translation-chain=.
-To use this debugging helper, you can either:
+If your terminal reports KKP support and KKP is active, don't be confused that =describe-key-briefly= or similar functions sometimes do not report the key you pressed if it involved =Shift=.
+If there is no keybinding for a shifted key, Emacs attempts to find a binding for the non-shifted part (controlled by the global variable =translate-upper-case-key-bindings=).
+That means for example, if you hit =C-S-g= in the normal case where there exists no binding for this key sequence, 
+Emacs will fall back to search for a binding for =C-g=. You can verify this yourself if evaluating =(global-set-key (kbd "C-S-g") 'revert-buffer)= and then entering =C-h c= (=describe-key-briefly=) =C-S-g=.
+
+To determine how your keyboard input is translated, you can use the helper command =kkp-debug-describe-key-translation-chain=.
+To use this debugging helper, you can:
 #+begin_src emacs-lisp
+  ;; either
   ;;
   ;;   M-x load-library RET kkp-debug RET
   ;;

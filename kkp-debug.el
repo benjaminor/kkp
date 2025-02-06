@@ -103,7 +103,6 @@ Replicates prefix descent like `lookup-key' but does not actually call it."
             (throw 'done found-binding))))))))
 
 
-
 (defun kkp-debug--get-key-events-from-terminal ()
   "Read a full key sequence from the terminal.
 This function uses `read-event' with a short timeout to gather all parts
@@ -117,32 +116,45 @@ of the sequence and returns them as a list of events."
     (nreverse events)))
 
 (defun kkp-debug--translate-events-with-kkp-fallback (events)
-  "Translate terminal input EVENTS using `input-decode-map` with a fallback.
-This function works as follows:
-  1. It builds a key sequence from EVENTS and looks it up in `input-decode-map`.
-  2. If `lookup-key` returns a non-number, that value is returned.
-  3. If `lookup-key` returns a number (indicating a prefix) and the first two
-     events are 27 and 91 (ESC and '[') and the third event is an ASCII digit
-     between ?1 and ?9, then it calls `kkp--translate-terminal-input' on the
-     remaining events.
-  4. Otherwise, it returns nil."
+  "Translate terminal input EVENTS using `input-decode-map`, with KKP fallback.
+Steps:
+1. Build a key sequence from EVENTS and look it up in `input-decode-map`.
+2. If that lookup is not a number, it's a direct binding or nil, so return it.
+3. If it returns a number (partial prefix match):
+   a) Check if the first three events are 27 (ESC), 91 ([), and something
+      in `kkp--key-prefixes`.
+   b) If so, do a second `lookup-key` on exactly those three bytes.
+      - If it returns a function/closure, log it but do NOT call it.
+      - Then call `kkp--translate-terminal-input` on the rest of the events.
+   c) Otherwise, return nil."
   (let* ((key-seq (vconcat events))
          (lookup-result (lookup-key input-decode-map key-seq)))
     (if (not (numberp lookup-result))
+        ;; Case 1 & 2: Direct binding or nil => return as is.
         (progn
           (message "Mapping found in input-decode-map: %s" lookup-result)
           lookup-result)
+
+      ;; Case 3: A number => partial prefix match.
       (if (and (>= (length events) 3)
-               (eq (nth 0 events) 27)
-               (eq (nth 1 events) 91)
+               (eq (nth 0 events) 27)  ; ESC
+               (eq (nth 1 events) 91)  ; [
                (memq (nth 2 events) kkp--key-prefixes))
-          (let ((rest (nthcdr 2 events)))
-            (message "Prefix detected (ESC [ and a digit). Calling kkp--translate-terminal-input on: %s"
-                     (key-description (vconcat rest)))
-            (kkp--translate-terminal-input rest))
-        (progn
-          (message "lookup-key returned %s (prefix), but conditions not met." lookup-result)
-          nil)))))
+          (let* ((prefix (seq-subseq events 0 3))
+                 ;; Check short prefix in input-decode-map:
+                 (short-prefix-fn (kkp-debug--lookup-key-sequence input-decode-map (vconcat prefix)))
+                 (rest (nthcdr 2 events)))
+            (when (and (functionp short-prefix-fn)
+                       (let ((fn-text (format "%S" short-prefix-fn)))
+                         (string-match-p "kkp--process-keys" fn-text)))
+              (message "Short prefix %s mapped to function: %s (not calling it)."
+                       (key-description (vconcat prefix)) short-prefix-fn)
+              (message "Prefix and KKP closure detected, now calling kkp--translate-terminal-input on remainder: %s"
+                       (key-description (vconcat rest)))
+              (kkp--translate-terminal-input rest)))
+        (message "lookup-key returned a prefix %s, but conditions not met." lookup-result)
+        nil))))
+
 
 ;;;###autoload
 (defun kkp-debug-describe-key-translation-chain ()
@@ -184,7 +196,7 @@ Output is arranged in aligned columns for clarity."
            (final-output (or translation-result local-output))
            (final-binding (key-binding final-output)))
       (princ (format "%-40s %s\n" "KKP is active:" (if kkp-is-active "YES" "NO")))
-      (princ (format "%-40s %s\n" "Raw key events:" (key-description raw-key)))
+      (princ (format "%-40s %s (key vector: %s)\n" "Raw key events:" (key-description raw-key) raw-key))
       (princ (format "%-40s %s\n" "After input-decode-map:" (key-description input-decode-output)))
       (princ (format "%-40s %s\n" "Normal binding (if any):" (or (and normal-binding (prin1-to-string normal-binding))
                                                                  "none")))
@@ -194,7 +206,9 @@ Output is arranged in aligned columns for clarity."
       (princ (format "%-40s %s => %s\n" "After key-translation-map:"
                      (if translation-result "found" "not found")
                      (key-description final-output)))
-      (princ (format "%-40s %s\n" "Final command binding:" (or final-binding "undefined"))))))
+      (princ (format "%-40s %s\n" "Final command binding:" (or final-binding "undefined")))
+      (unless final-binding
+        (princ (format "\n%s" "If translate-upper-case-key-bindings is t and no binding exists for the upper-case sequence, Emacs may fall back to the lower-case sequence."))))))
 
 (provide 'kkp-debug)
 ;;; kkp-debug.el ends here
