@@ -618,14 +618,16 @@ again later if needed."
        (member terminal kkp--active-terminal-list))
     (kkp-teardown-function-keys terminal)
     (send-string-to-terminal (kkp--csi-escape "<u") terminal)
-    (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list))
 
     (normal-erase-is-backspace-mode (terminal-parameter terminal 'kkp--previous-normal-erase-is-backspace-val))
 
     (with-selected-frame (car (frames-on-display-list terminal))
       (dolist (prefix kkp--key-prefixes)
         (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t))
-      (run-hooks 'kkp-terminal-teardown-complete-hook))))
+      (run-hooks 'kkp-terminal-teardown-complete-hook)))
+  ;; We want to remove the terminal anyway from the active terminal list
+  ;; Either we just tore it down, or it is not live anyway and should not be on the list.
+  (setq kkp--active-terminal-list (delete terminal kkp--active-terminal-list)))
 
 
 (defun kkp--terminal-setup ()
