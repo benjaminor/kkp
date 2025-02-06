@@ -307,6 +307,12 @@ It is one of the symbols `shift', `alt', `control', `super',
 (defvar kkp--suspended-terminal-list
   nil "Internal variable to track suspended terminals which have enabled KKP in activate state.")
 
+(defvar kkp-terminal-setup-complete-hook nil
+  "Hook run after KKP finishes terminal setup in a given terminal.")
+
+(defvar kkp-terminal-teardown-complete-hook nil
+  "Hook run after KKP finishes terminal teardown in a given terminal.")
+
 (defun kkp--mod-bits (modifier)
   "Return the KKP encoding bits that should be interpreted as MODIFIER.
 
@@ -613,7 +619,8 @@ again later if needed."
 
     (with-selected-frame (car (frames-on-display-list terminal))
       (dolist (prefix kkp--key-prefixes)
-        (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t)))))
+        (compat-call define-key input-decode-map (kkp--csi-escape (string prefix)) nil t))
+      (run-hooks 'kkp-terminal-teardown-complete-hook))))
 
 
 (defun kkp--terminal-setup ()
@@ -652,7 +659,8 @@ does not have focus, as input from this terminal cannot be reliably read."
               (with-selected-frame (car (frames-on-display-list terminal))
                 (dolist (prefix kkp--key-prefixes)
                   (define-key input-decode-map (kkp--csi-escape (string prefix))
-                              (lambda (_prompt) (kkp--process-keys prefix))))))))))))
+                              (lambda (_prompt) (kkp--process-keys prefix))))
+                (run-hooks 'kkp-terminal-setup-complete-hook)))))))))
 
 
 (defun kkp--disable-in-active-terminals()
