@@ -313,6 +313,27 @@ It is one of the symbols `shift', `alt', `control', `super',
 (defvar kkp-terminal-teardown-complete-hook nil
   "Hook run after KKP finishes terminal teardown in a given terminal.")
 
+;; NOTE this is a copy from x-alternatives-map
+(defvar kkp-alternatives-map
+  (let ((map (make-sparse-keymap)))
+    ;; Map certain keypad keys into ASCII characters that people usually expect.
+    (define-key map [M-backspace] [?\M-\d])
+    (define-key map [M-delete] [?\M-\d])
+    (define-key map [M-tab] [?\M-\t])
+    (define-key map [M-linefeed] [?\M-\n])
+    (define-key map [M-clear] [?\M-\C-l])
+    (define-key map [M-return] [?\M-\C-m])
+    (define-key map [M-escape] [?\M-\e])
+    (unless (featurep 'ns)
+      (define-key map [iso-lefttab] [backtab])
+      (define-key map [S-iso-lefttab] [backtab]))
+    (and (or (eq system-type 'windows-nt)
+	         (featurep 'ns))
+	     (define-key map [S-tab] [backtab]))
+    map)
+  "Keymap of possible alternative meanings for some keys.")
+
+
 (defun kkp--mod-bits (modifier)
   "Return the KKP encoding bits that should be interpreted as MODIFIER.
 
@@ -555,25 +576,6 @@ does not have focus, as input from this terminal cannot be reliably read."
                 (kkp--get-enhancement-bit (assoc elt kkp--progressive-enhancement-flags))))
              kkp-active-enhancements :initial-value 0))
 
-;; NOTE this is a copy from x-alternatives-map
-(defvar kkp-alternatives-map
-  (let ((map (make-sparse-keymap)))
-    ;; Map certain keypad keys into ASCII characters that people usually expect.
-    (define-key map [M-backspace] [?\M-\d])
-    (define-key map [M-delete] [?\M-\d])
-    (define-key map [M-tab] [?\M-\t])
-    (define-key map [M-linefeed] [?\M-\n])
-    (define-key map [M-clear] [?\M-\C-l])
-    (define-key map [M-return] [?\M-\C-m])
-    (define-key map [M-escape] [?\M-\e])
-    (unless (featurep 'ns)
-      (define-key map [iso-lefttab] [backtab])
-      (define-key map [S-iso-lefttab] [backtab]))
-    (and (or (eq system-type 'windows-nt)
-	         (featurep 'ns))
-	     (define-key map [S-tab] [backtab]))
-    map)
-  "Keymap of possible alternative meanings for some keys.")
 
 ;; NOTE this is a copy of the x-setup-function-keys function
 (defun kkp-setup-function-keys (terminal)
