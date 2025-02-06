@@ -423,7 +423,10 @@ contains the specific logic for processing sequences terminated by ?u or
          (input-parts (split-string input-string ";"))
          (keycode-parts (split-string (cl-first input-parts) ":")) ;; get keycodes from sequence
          (primary-keycode (cl-first keycode-parts))
-         (secondary-keycode (cl-second keycode-parts))
+         (secondary-keycode-str (cl-second keycode-parts))
+         (secondary-keycode (and (stringp secondary-keycode-str)
+                                 (not (string-empty-p secondary-keycode-str))
+                                 secondary-keycode-str))
          (is-shifted (and secondary-keycode
                           (not (member (string-to-number primary-keycode) kkp--printable-ascii-letters))))
          (final-key-code (if is-shifted secondary-keycode primary-keycode))
